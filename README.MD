@@ -18,6 +18,6 @@ note over s:接受Client.Socket
 		s-->>c:传送字节流
 	end
 s->>c:传送完毕
-c->>s:接收
+c->>s:接收无误
 ```
 

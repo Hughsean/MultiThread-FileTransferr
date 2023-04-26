@@ -14,23 +14,27 @@
 #include "string"
 
 namespace cncd {
+#define LOG(c)           LogEvent::make(__FILE__, __LINE__, (c))
+#define LOGWITHID(c, id) LogEvent::make(__FILE__, __LINE__, (c), (id))
+        // #define
+        // #define MYLOG(c, id) LogEvent::make(__FILE__, __LINE__, (c), (id))
+
         enum class LogLevel { DEBUG = 1, INFO };
         // 日志事件/实体
         struct LogEvent {
-                using ptr                  = std::shared_ptr<LogEvent>;
-                char const*     m_file     = nullptr;  // 文件名
-                uint32_t        m_line     = 0;        // 行号
-                uint32_t        m_threadid = 0;        // 线程id
-                std::string     m_content;             // 内容
-                LogLevel        m_level;
-                static LogEvent make(const char* file, uint32_t line,
-                                     const std::string&& content,
-                                     uint32_t            tid = UINT32_MAX);
+                using ptr              = std::shared_ptr<LogEvent>;
+                char const* m_file     = nullptr;  // 文件名
+                uint32_t    m_line     = 0;        // 行号
+                uint32_t    m_threadid = 0;        // 线程id
+                std::string m_content;             // 内容
+                // LogLevel        m_level;
+                static LogEvent make(const char* file, uint32_t line, const std::string&& content,
+                                     uint32_t tid = UINT32_MAX);
         };
         // 格式化
         class LogFormater {
             public:
-                static std::string format(const LogEvent& event);
+                static std::string format(LogLevel level, const LogEvent& event);
         };
         // 日志输出target
         class LogAppender {
@@ -40,6 +44,7 @@ namespace cncd {
                 void log(LogLevel level, const LogEvent&& event);
 
             private:
+                // std::mutex    mtx;
                 std::ostream& m_os;
         };
 
