@@ -13,23 +13,19 @@
 #include "set"
 #include "thread"
 namespace cncd {
-
         using namespace asio;
         using socket_ptr = std::shared_ptr<ip::tcp::socket>;
 
-        class Worker {
+        class UpWorker {
             public:
                 void uploadFunc();
-                void downloadFunc();
                 // void setSocket(socket_ptr);
-                Worker(Type type, socket_ptr sckptr, FileBlock::ptr fbptr);
+                UpWorker(socket_ptr sckptr, FileReader fbptr);
 
             private:
-                BYTE           m_data[block_size];
-                State          m_state;
-                Type           m_type;
-                FileBlock::ptr m_fbptr;
-                socket_ptr     m_sckptr;
+                BYTE       m_data[BLOCKSIZE];
+                State      m_state;
+                socket_ptr m_sckptr;
         };
 
         class Task {
@@ -37,11 +33,10 @@ namespace cncd {
                 Task();
 
             private:
-                Type                         m_type;     //
-                int                          m_id;       // 任务号
-                io_context                   m_ioc;      //
-                std::array<Worker, thread_n> m_workers;  //
-                std::set<std::thread>        m_threads;  //
+                // int                          m_id;       // 任务号
+                io_context m_ioc;  //
+                // std::array<Worker, THREADN> m_workers;  //
+                std::set<std::thread> m_threads;  //
         };
 }  // namespace cncd
 #endif  // MAIN_TASK_H
