@@ -7,7 +7,7 @@
 #define _WIN32_WINNT 0x0601
 #include "asio.hpp"
 #include "list"
-#include "task.h"
+#include "worker.h"
 
 namespace cncd {
         using namespace asio;
@@ -18,7 +18,6 @@ namespace cncd {
 
             private:
                 ip::address_v4        m_host;   // 连接的对方主机ip
-                std::list<cncd::Task> m_tasks;  // 传输任务列表
                 State                 m_state;  // 连接状态
         };
 }  // namespace cncd

@@ -3,8 +3,8 @@ add_library(
         ${PROJECT_NAME}
         inc/connection.h
         src/connection.cpp
-        src/task.cpp
-        inc/task.h
+        src/worker.cpp
+        inc/worker.h
         inc/fileblock.h src/fileblock.cpp inc/config.h)
 
 target_include_directories(lib PUBLIC ./inc)

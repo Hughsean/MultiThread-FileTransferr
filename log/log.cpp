@@ -7,8 +7,11 @@
 #include "fstream"
 
 namespace cncd {
-        LogEvent LogEvent::make(const char* file, uint32_t line, const std::string&& content, uint32_t tid) {
-                return LogEvent{ .m_file = file, .m_line = line, .m_threadid = tid, .m_content = content };
+        LogEvent::LogEvent(const char* file, uint32_t line, const std::string&& content, uint32_t tid) {
+                m_file     = file;
+                m_line     = line;
+                m_threadid = tid;
+                m_content  = content;
         }
 
         LogAppender::LogAppender(std::ostream& ostm) : m_os(ostm) {}
