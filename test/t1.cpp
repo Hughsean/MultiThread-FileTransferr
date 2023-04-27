@@ -110,4 +110,5 @@ void fun3() {
         ofs.close();
 }
 int main() {
+        
 }
