@@ -60,15 +60,15 @@ namespace cncd {
                 /// @brief 取得当前块id
                 /// @return
                 int                     getID();
-                static std::vector<ptr> frsCreator(int n, const std::string& pathWithfname, LogAppender::ptr log);
+                static std::vector<ptr> ReadersBuilder(int n, const std::string& pathWithfname, LogAppender::ptr log);
 
             private:
-                const int        mid;
-                std::string      mpath;
+                const int        mID;
+                std::string      mPathWithFileName;
                 std::ifstream    mifs;
-                uint32_t         moffect;
-                uint32_t         mlength;
-                uint32_t         mprogress;
+                uint32_t         mOffect;
+                uint32_t         mLength;
+                uint32_t         mProgress;
                 LogAppender::ptr mlog;
         };
         class FileWriter {
@@ -86,12 +86,12 @@ namespace cncd {
 
             private:
                 const int        mid;
-                std::string      mfilename;
-                std::string      mpath;
+                std::string      mFileName;
+                std::string      mPath;
                 std::ofstream    mofs;
-                uint32_t         moffset;
-                uint32_t         mlength;
-                uint32_t         mprogress;
+                uint32_t         mOffset;
+                uint32_t         mLength;
+                uint32_t         mProgress;
                 LogAppender::ptr mlog;
         };
 }  // namespace cncd

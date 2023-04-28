@@ -24,6 +24,6 @@ find_package(jsoncpp CONFIG REQUIRED)
 
 target_link_libraries(T1 PRIVATE fmt::fmt lib::log lib::lib JsonCpp::JsonCpp)
 target_link_libraries(T2 PRIVATE fmt::fmt JsonCpp::JsonCpp)
-target_link_libraries(T3 PRIVATE fmt::fmt JsonCpp::JsonCpp)
+target_link_libraries(T3 PRIVATE fmt::fmt JsonCpp::JsonCpp lib::lib lib::log)
 # target_link_libraries(T4 PRIVATE Threads::Threads)
 # target_link_libraries(T4 PRIVATE PThreads4W::PThreads4W)

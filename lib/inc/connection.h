@@ -7,7 +7,7 @@
 #define _WIN32_WINNT 0x0601
 #include "asio.hpp"
 #include "list"
-#include "worker.h"
+#include "task.h"
 
 namespace cncd {
         using namespace asio;

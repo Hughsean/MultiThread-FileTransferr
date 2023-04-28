@@ -60,7 +60,7 @@ void fun3() {
         uint32_t         lastblock = totalsize - (n - 1) * blocksize;
         LogAppender::ptr log       = std::make_shared<LogAppender>(std::cout);
         std::cout << std::format("{} {} {} {}\n", fname, totalsize, blocksize, lastblock);
-        auto vecr = FileReader::frsCreator(n, readpath, log);
+        auto vecr = FileReader::ReadersBuilder(n, readpath, log);
         auto vecw = FileWriter::fwsCreator(n, totalsize, fname, writepath, log);
         // for (auto &&e : vecr) {
         //         auto ee = e.get();
@@ -109,6 +109,37 @@ void fun3() {
         }
         ofs.close();
 }
+/// @brief TCP传输文件测试
+void fun4() {
+        using namespace asio;
+        io_context        ioc;
+        ip::tcp::endpoint edp(ip::tcp::v4(), 8080);
+        ip::tcp::acceptor acp(ioc, edp);
+        streambuf         buf;
+        auto              sck = acp.accept();
+        std::cout << sck.remote_endpoint().address() << std::endl;
+        std::ifstream infs(R"(C:\Users\xSeung\Desktop\MTD.TEST\B.mp4)", std::ios::binary);
+        int           size = 1024;
+        int           i    = 0;
+        while (!infs.eof()) {
+                infs.read((char *)buf.prepare(size).data(), size);
+                buf.commit(size);
+                sck.send(buf.data());
+                buf.consume(size);
+                i++;
+                if (i % 1000 == 0) {
+                        std::cout << "发送1024000字节" << std::endl;
+                }
+        }
+        sck.shutdown(ip::tcp::socket::shutdown_both);
+}
 int main() {
-        
+        using namespace asio;
+        io_context        ioc;
+        ip::tcp::endpoint edp(ip::tcp::v4(), 8080);
+        ip::tcp::acceptor acp(ioc, edp);
+        streambuf         buf;
+        auto              sck = acp.accept();
+        std::cout << std::format("{}:{}", sck.remote_endpoint().address().to_string(), sck.remote_endpoint().port());
+        sck.wait(socket_base::wait_type::wait_error);
 }

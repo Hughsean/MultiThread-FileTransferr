@@ -82,7 +82,7 @@ namespace cncd {
         // }
         /*--------------------------------------------------------------------------*/
         FileReader::FileReader(int id, const std::string &fpath, uint32_t offset, uint32_t length, LogAppender::ptr log)
-            : mid(id), mpath(fpath), moffect(offset), mlength(length), mlog(log), mprogress(0) {
+            : mID(id), mPathWithFileName(fpath), mOffect(offset), mLength(length), mlog(log), mProgress(0) {
                 mifs.open(fpath, std::ios::binary | std::ios::in);
                 if (!mifs.good()) {
                         mlog.get()->log(LogLevel::DEBUG, LOG("文件打开失败\n"));
@@ -92,7 +92,7 @@ namespace cncd {
         }
 
         bool FileReader::finished() {
-                return mprogress == mlength;
+                return mProgress == mLength;
         }
 
         uint32_t FileReader::read(BYTE *data, uint32_t buffersize) {
@@ -100,17 +100,17 @@ namespace cncd {
                         mlog.get()->log(LogLevel::INFO, LOG("禁止在已读完的块中继续读出内容\n"));
                         return 0;
                 }
-                uint32_t remain = mlength - mprogress;
+                uint32_t remain = mLength - mProgress;
                 uint32_t size   = remain <= buffersize ? remain : buffersize;
                 mifs.read((char *)data, size);
-                mprogress += size;
+                mProgress += size;
                 return size;
         }
 
         int FileReader::getID() {
-                return mid;
+                return mID;
         }
-        auto FileReader::frsCreator(int n, const std::string &fpath, LogAppender::ptr log) -> std::vector<ptr> {
+        auto FileReader::ReadersBuilder(int n, const std::string &fpath, LogAppender::ptr log) -> std::vector<ptr> {
                 if (n <= 1) {
                         log.get()->log(LogLevel::DEBUG, LOG("n<=1"));
                         abort();
@@ -128,9 +128,9 @@ namespace cncd {
 
         FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, uint32_t offset,
                                uint32_t length, LogAppender::ptr log)
-            : mid(id), moffset(offset), mlength(length), mlog(log), mpath(path) {
-                mfilename        = fmt::format("{}_{}.part", filename, id);
-                std::string temp = fmt::format("{}/{}", path, mfilename);
+            : mid(id), mOffset(offset), mLength(length), mlog(log), mPath(path) {
+                mFileName        = fmt::format("{}_{}.part", filename, id);
+                std::string temp = fmt::format("{}/{}", path, mFileName);
                 mofs.open(temp, std::ios::binary);
                 if (!mofs.good()) {
                         mlog.get()->log(LogLevel::DEBUG, LOG("文件打开失败\n"));
@@ -139,7 +139,7 @@ namespace cncd {
         }
 
         bool FileWriter::finished() {
-                return mprogress == mlength;
+                return mProgress == mLength;
         }
 
         uint32_t FileWriter::write(BYTE *data, uint32_t buffersize) {
@@ -147,10 +147,10 @@ namespace cncd {
                         mlog.get()->log(LogLevel::INFO, LOG("禁止在已写完的块中继续写入内容\n"));
                         return 0;
                 }
-                uint32_t remain = mlength - mprogress - 1;
+                uint32_t remain = mLength - mProgress - 1;
                 uint32_t size   = remain < buffersize ? remain : buffersize;
                 mofs.write((char *)data, size);
-                mprogress += size;
+                mProgress += size;
                 return size;
         }
 
@@ -159,7 +159,7 @@ namespace cncd {
         }
 
         const std::string &FileWriter::getFname() {
-                return mfilename;
+                return mFileName;
         }
 
         auto FileWriter::fwsCreator(int n, uint32_t totalsize, const std::string &filename, const std::string &path,
