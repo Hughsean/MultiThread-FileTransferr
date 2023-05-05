@@ -3,7 +3,7 @@
 //
 #include "log.h"
 #include "fmt/chrono.h"
-#include "fmt/core.h"
+#include "format"
 #include "fstream"
 
 namespace cncd {
@@ -24,14 +24,14 @@ namespace cncd {
         std::string LogFormater::format(LogLevel level, const LogEvent& event) {
                 std::string str = fmt::format("{:%Y-%m-%d %H:%M:%S}", fmt::localtime(std::time(nullptr)));
                 if (level == LogLevel::DEBUG) {
-                        str = fmt::format("{} line:{} file:{}", str, event.m_line, event.m_file);
+                        str = std::format("{} line:{} file:{}", str, event.m_line, event.m_file);
                 }
                 if (event.m_threadid != UINT32_MAX) {
-                        str = fmt::format("[{} tid:{}]", str, event.m_threadid);
+                        str = std::format("[{} tid:{}]", str, event.m_threadid);
                 }
                 else {
-                        str = fmt::format("[{}]", str);
+                        str = std::format("[{}]", str);
                 }
-                return fmt::format("{}: {}", str, event.m_content);
+                return std::format("{}: {}\n", str, event.m_content);
         }
 }  // namespace cncd

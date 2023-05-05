@@ -4,7 +4,7 @@
 #define _WIN32_WINNT 0x0601
 
 #include "fileblock.h"
-#include "fmt/core.h"
+#include "format"
 #include "fstream"
 #include "mutex"
 #include "utility"
@@ -82,10 +82,10 @@ namespace cncd {
         // }
         /*--------------------------------------------------------------------------*/
         FileReader::FileReader(int id, const std::string &fpath, uint32_t offset, uint32_t length, LogAppender::ptr log)
-            : mID(id), mPathWithFileName(fpath), mOffect(offset), mLength(length), mlog(log), mProgress(0) {
+            : mID(id), mPathWithFileName(fpath), mOffset(offset), mLength(length), mlog(log), mProgress(0) {
                 mifs.open(fpath, std::ios::binary | std::ios::in);
                 if (!mifs.good()) {
-                        mlog.get()->log(LogLevel::DEBUG, LOG("文件打开失败\n"));
+                        mlog.get()->log(LogLevel::DEBUG, LOG("文件打开失败"));
                         abort();
                 }
                 mifs.seekg(offset, std::ios::beg);
@@ -95,9 +95,9 @@ namespace cncd {
                 return mProgress == mLength;
         }
 
-        uint32_t FileReader::read(BYTE *data, uint32_t buffersize) {
+        uint32_t FileReader::read(void *data, uint32_t buffersize) {
                 if (this->finished()) {
-                        mlog.get()->log(LogLevel::INFO, LOG("禁止在已读完的块中继续读出内容\n"));
+                        mlog.get()->log(LogLevel::INFO, LOG("禁止在已读完的块中继续读出内容"));
                         return 0;
                 }
                 uint32_t remain = mLength - mProgress;
@@ -107,15 +107,21 @@ namespace cncd {
                 return size;
         }
 
+        void FileReader::seek(uint32_t progress) {
+                mProgress = progress;
+                mifs.seekg(mOffset + mProgress, std::ios::beg);
+        }
+
         int FileReader::getID() {
                 return mID;
         }
-        auto FileReader::ReadersBuilder(int n, const std::string &fpath, LogAppender::ptr log) -> std::vector<ptr> {
+        auto FileReader::ReadersBuilder(int n, uint32_t totalsize, const std::string &fpath, LogAppender::ptr log)
+            -> std::vector<ptr> {
                 if (n <= 1) {
                         log.get()->log(LogLevel::DEBUG, LOG("n<=1"));
                         abort();
                 }
-                uint32_t         totalsize = std::ifstream(fpath, std::ios::binary).seekg(0, std::ios::end).tellg();
+                // uint32_t         totalsize = std::ifstream(fpath, std::ios::binary).seekg(0, std::ios::end).tellg();
                 uint32_t         blocksize = totalsize / (n - 1);
                 uint32_t         lastblock = totalsize - (n - 1) * blocksize;
                 std::vector<ptr> vec;
@@ -129,11 +135,12 @@ namespace cncd {
         FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, uint32_t offset,
                                uint32_t length, LogAppender::ptr log)
             : mid(id), mOffset(offset), mLength(length), mlog(log), mPath(path) {
-                mFileName        = fmt::format("{}_{}.part", filename, id);
-                std::string temp = fmt::format("{}/{}", path, mFileName);
+                mProgress        = 0;
+                mFileName        = std::format("{}_{}.part", filename, id);
+                std::string temp = std::format("{}\\{}", path, mFileName);
                 mofs.open(temp, std::ios::binary);
                 if (!mofs.good()) {
-                        mlog.get()->log(LogLevel::DEBUG, LOG("文件打开失败\n"));
+                        mlog.get()->log(LogLevel::DEBUG, LOG("文件打开失败"));
                         abort();
                 }
         }
@@ -142,9 +149,9 @@ namespace cncd {
                 return mProgress == mLength;
         }
 
-        uint32_t FileWriter::write(BYTE *data, uint32_t buffersize) {
+        uint32_t FileWriter::write(const void *data, uint32_t buffersize) {
                 if (finished()) {
-                        mlog.get()->log(LogLevel::INFO, LOG("禁止在已写完的块中继续写入内容\n"));
+                        mlog.get()->log(LogLevel::INFO, LOG("禁止在已写完的块中继续写入内容"));
                         return 0;
                 }
                 uint32_t remain = mLength - mProgress - 1;
@@ -160,6 +167,10 @@ namespace cncd {
 
         const std::string &FileWriter::getFname() {
                 return mFileName;
+        }
+
+        uint32_t FileWriter::getProgress() {
+                return mProgress;
         }
 
         auto FileWriter::fwsCreator(int n, uint32_t totalsize, const std::string &filename, const std::string &path,

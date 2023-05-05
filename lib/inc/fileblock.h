@@ -56,17 +56,19 @@ namespace cncd {
                 /// @param data
                 /// @param buffersize
                 /// @return
-                uint32_t read(BYTE* data, uint32_t buffersize);
+                uint32_t read(void* data, uint32_t buffersize);
+                void     seek(uint32_t progress);
                 /// @brief 取得当前块id
                 /// @return
                 int                     getID();
-                static std::vector<ptr> ReadersBuilder(int n, const std::string& pathWithfname, LogAppender::ptr log);
+                static std::vector<ptr> ReadersBuilder(int n, uint32_t totalsize, const std::string& pathWithfname,
+                                                       LogAppender::ptr log);
 
             private:
                 const int        mID;
                 std::string      mPathWithFileName;
                 std::ifstream    mifs;
-                uint32_t         mOffect;
+                uint32_t         mOffset;
                 uint32_t         mLength;
                 uint32_t         mProgress;
                 LogAppender::ptr mlog;
@@ -77,9 +79,10 @@ namespace cncd {
                 FileWriter(int id, const std::string& filename, const std::string& path, uint32_t offset,
                            uint32_t length, LogAppender::ptr log);
                 bool                    finished();
-                uint32_t                write(BYTE* data, uint32_t buffersize);
+                uint32_t                write(const void* data, uint32_t buffersize);
                 int                     getID();
                 const std::string&      getFname();
+                uint32_t getProgress();
                 static std::vector<ptr> fwsCreator(int n, uint32_t totalsize, const std::string& filename,
                                                    const std::string& path, LogAppender::ptr log);
                 void                    close();

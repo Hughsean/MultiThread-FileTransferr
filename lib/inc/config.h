@@ -6,9 +6,11 @@
 #define CN_CD_CONFIG_H
 #include "cstdint"
 // const int block_size = 512;
-namespace cncd {
-        const int THREADN = 6;
-        const uint32_t BLOCKSIZE = 512;
-}  // namespace cncd
+#define THREAD_N 6
+#define BUFFSIZE 512
+#define JSONSIZE 2048
+#define ID       "id"
+#define PROGRESS "progress"
+// namespace cncd
 
 #endif  // CN_CD_CONFIG_H

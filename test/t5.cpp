@@ -1,16 +1,11 @@
-﻿#include "functional"
-#include "future"
+﻿#include "asio.hpp"
 #include "iostream"
-#include "mutex"
-#include "thread"
-
-int fun() {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-        return 1;
-}
+#include "json/json.h"
 
 int main(int argc, char* args[]) {
-        auto e = std::async(std::launch::async, fun);
-        std::cout << "r: ";
-        std::cout << e.get();
+        using namespace asio;
+        streambuf   buf;
+        Json::Value j;
+        j["11"] = 11;
+        std::cout << j.toStyledString();
 }
