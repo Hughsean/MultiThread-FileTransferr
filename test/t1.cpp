@@ -20,7 +20,7 @@
 /// @brief UDP广播测试server
 void fun2() {
         using namespace asio;
-        using namespace cncd;
+        using namespace mtft;
         Json::Value       root;
         io_service        ioc;
         ip::udp::endpoint uendp(ip::udp::v4(), 0);
@@ -47,7 +47,7 @@ void fun2() {
 /// @brief fileblock 测试函数
 void fun3() {
         using namespace asio;
-        using namespace cncd;
+        using namespace mtft;
         std::string      readpath(R"(C:\Users\xSeung\Videos\Captures\A.mp4)");
         int              pos   = readpath.find_last_of('\\');
         int              n     = 3;
@@ -125,7 +125,7 @@ void fun4() {
 }
 int main() {
         using namespace asio;
-        using namespace cncd;
+        using namespace mtft;
         io_context                        ioc;
         ip::tcp::endpoint                 edp(ip::tcp::v4(), 8080);
         ip::tcp::acceptor                 acp(ioc, edp);

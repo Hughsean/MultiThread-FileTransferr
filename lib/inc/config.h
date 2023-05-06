@@ -9,7 +9,6 @@
 #define THREAD_N 6
 #define BUFFSIZE 512
 #define JSONSIZE 2048
-#define ID       "id"
 #define PROGRESS "progress"
 // namespace cncd
 
