@@ -9,63 +9,78 @@
 #include "asio.hpp"
 #include "config.h"
 #include "fileblock.h"
-#include "fstream"
-#include "memory"
 #include "queue"
-#include "set"
 #include "thread"
+#include "json/json.h"
 
-namespace cncd {
-        using namespace asio;
-        using socket_ptr = std::shared_ptr<ip::tcp::socket>;
+namespace mtft {
+    using namespace asio;
+    using socket_ptr = std::shared_ptr<ip::tcp::socket>;
 
-        enum class WorkerState { F, W, R };
+    enum class WorkState { F, W, R };
 
-        class Work {
-            public:
-                virtual void func() = 0;
-                virtual ~Work()     = default;
-        };
+    class Work {
+    public:
+        virtual void Func() = 0;
+        Work(LogAppender::ptr log);
+        virtual ~Work() = default;
 
-        class UpWork : public Work {
-            public:
-                UpWork(socket_ptr sckptr, FileReader fbptr);
-                void uploadFunc();
-                // void setSocket(socket_ptr);
-                void func() override;
+    protected:
+        bool              ReadJson(streambuf &buf, Json::Value &json);
+        void              WriteJson(streambuf &buf, Json::Value &json);
+        int               mid;
+        io_context        mioc;
+        LogAppender::ptr  mlog;
+        ip::tcp::endpoint medp;
+        WorkState         mState;
+    };
 
-            private:
-                BYTE        mData[BLOCKSIZE];
-                WorkerState mState;
-                socket_ptr  mSckptr;
-        };
+    class UpWork : public Work {
+    public:
+        UpWork(LogAppender::ptr log, const ip::tcp::endpoint &edp, FileReader::ptr reader);
+        void Func() override;
 
-        class DownWork : public Work {
-            public:
-                DownWork();
-                void downloadFunc();
-                void func() override;
+    private:
+        bool uploadFunc(socket_ptr sck);
+        FileReader::ptr mReader;
+    };
 
-            private:
-        };
+    class DownWork : public Work {
+    public:
+        DownWork(LogAppender::ptr log, FileWriter::ptr fwriter);
+        void Func() override;
+        int  GetEdp();
 
-        class Task {
-            public:
-            private:
-        };
+    private:
+        bool                               downloadFunc(socket_ptr sck);
+        FileWriter::ptr                    mFwriter;
+        std::shared_ptr<ip::tcp::acceptor> macp;
+    };
 
-        /// @brief 作业池
-        class TaskPool {
-            public:
-                TaskPool();
-                ~TaskPool();
-                void submit(std::shared_ptr<Task> task);
+    class Task {
+    public:
+        Task(LogAppender::ptr log, const std::vector<FileWriter::ptr> &vec);
+        Task(LogAppender::ptr log, const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec);
+        void run(int n);
+        int  getN();
 
-            private:
-                std::queue<std::shared_ptr<Task>> mTaskQueue;    // 任务队列
-                std::vector<std::thread>          mThreads;      // 工作线程
-                std::shared_ptr<Task>             mCurrentTask;  // 当前任务
-        };
+    private:
+        std::vector<std::shared_ptr<Work>> mWorks;
+    };
 
-}  // namespace cncd
+    /// @brief 作业池
+    class TaskPool {
+    public:
+        TaskPool(int n);
+        ~TaskPool();
+        void submit(std::shared_ptr<Task> task);
+
+    private:
+        const int                         n;             // 线程个数
+        std::queue<std::shared_ptr<Task>> mTaskQueue;    // 任务队列
+        std::vector<std::thread>          mThreads;      // 工作线程
+        std::shared_ptr<Task>             mCurrentTask;  // 当前任务
+    };
+
+}  // namespace mtft
 #endif  // MAIN_TASK_H

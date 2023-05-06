@@ -1,16 +1,16 @@
-﻿#include "functional"
-#include "future"
+﻿#include "asio.hpp"
+#include "connection.h"
+#include "ctime"
 #include "iostream"
-#include "mutex"
-#include "thread"
+#include "json/json.h"
+/////////////////
 
-int fun() {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-        return 1;
-}
-
+/////////////////
 int main(int argc, char* args[]) {
-        auto e = std::async(std::launch::async, fun);
-        std::cout << "r: ";
-        std::cout << e.get();
+    using namespace asio;
+    using namespace mtft;
+    auto     l = std::make_shared<LogAppender>(std::cout);
+    auto     f = std::make_shared<FileWriter>(1, "1", "", 1, 1, l);
+    DownWork d(l, f);
+    std::cout << d.GetEdp();
 }

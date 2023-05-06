@@ -9,17 +9,15 @@
 #include "list"
 #include "task.h"
 
-namespace cncd {
-        using namespace asio;
-        class Connection {
-            public:
-                enum class State { CONNNECTED, DISCONNECTED };
-                void setState(State state);
+namespace mtft {
+    using namespace asio;
+    class Connection {
+    public:
+        Connection();
 
-            private:
-                ip::address_v4        m_host;   // 连接的对方主机ip
-                State                 m_state;  // 连接状态
-        };
-}  // namespace cncd
+    private:
+        ip::tcp::endpoint medp;  // 对方主机
+    };
+}  // namespace mtft
 
 #endif  // MAIN_CONNECTION_H

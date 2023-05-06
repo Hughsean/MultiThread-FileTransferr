@@ -1,9 +1,11 @@
 ﻿#define _WIN32_WINNT 0x0601
 #include "asio.hpp"
+#include "fileblock.h"
 #include "fstream"
 #include "iostream"
 #include "string"
 #include "json/json.h"
+
 void fun() {
         using namespace asio;
         std::string                       ip1 = "192.168.43.75";
@@ -68,17 +70,48 @@ void fun1() {
 }
 int main() {
         using namespace asio;
-        std::string       ip = "172.19.43.33";
-        io_context        ioc;
-        ip::tcp::endpoint edp(ip::address_v4::from_string(ip), 8080);
-        ip::tcp::socket   sck(ioc);
-        // streambuf         buf;
-        error_code ec;
+        using namespace mtft;
+        // ip::tcp::socket                  sck(ioc);
+        std::string                         ip = "172.19.43.33";
+        io_context                          ioc;
+        ip::tcp::endpoint                   edp(ip::address_v4::from_string(ip), 8080);
+        ip::tcp::socket                     sck(ioc);
+        error_code                          ec;
+        streambuf                           buf;
+        streambuf                           buf_;
+        uint32_t                            totalsize = 361574449;
+        Json::Value                         root;
+        Json::OStream                       os(&buf_);
+        std::unique_ptr<Json::StreamWriter> p(Json::StreamWriterBuilder().newStreamWriter());
+        FileWriter fw(0, "A.mp4", R"(C:\Users\xSeung\Desktop)", 0, totalsize, std::make_shared<LogAppender>(std::cout));
         sck.connect(edp, ec);
-        if (ec) {
-                std::cout << std::format("{}\n", ec.message());
-                return 1;
-        }
-        // sck.shutdown(socket_base::shutdown_both);
+        root["progress"] = fw.getProgress();
+        // root.insert("1", 1);
+        uint32_t rootsize = p->write(root, &os);
+        buf_.commit(rootsize);
+        buf.consume(sck.write_some(buf.data()));
+        while (true) {
+                auto size = sck.read_some(buf.prepare(512));
+                if (ec) {
+                        std::cout << "err\n";
+                        std::this_thread::sleep_for(std::chrono::seconds(3));
+                        sck.connect(edp, ec);
 
+                        if (!ec) {
+                                root["progress"]  = fw.getProgress();
+                                uint32_t rootsize = p->write(root, &os);
+                                buf_.commit(rootsize);
+                                buf.consume(sck.write_some(buf.data()));
+                        }
+
+                        continue;
+                }
+                buf.commit(size);
+                size = fw.write((const void*)buf.data().data(), size);
+                buf.consume(size);
+                if (fw.finished()) {
+                        break;
+                }
+        }
+        fw.close();
 }

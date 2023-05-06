@@ -1,4 +1,5 @@
-﻿#include "format"
+﻿#include "asio.hpp"
+#include "format"
 #include "functional"
 #include "future"
 #include "iostream"
@@ -6,46 +7,28 @@
 #include "queue"
 #include "thread"
 #include "vector"
+#include "json/json.h"
 
+int n            = 0;
+using socket_ptr = std::shared_ptr<asio::ip::tcp::socket>;
 
-const int n = 3;
+void fun(int n) {
+    using namespace asio;
+    io_context        ioc;
+    ip::tcp::endpoint edp(ip::address_v4::any(), n);
+    ip::tcp::acceptor acp(ioc, edp);
+    // acp.listen();
+    auto sck = acp.accept();
 
-class T {
-    private:
-        int                     flag{ n };
-        std::condition_variable cv;
-        std::mutex              mtx;
-        std::queue<std::thread> tq;
-
-    public:
-        T(/* args */) {
-                auto func = [this](int i) {
-                        std::this_thread::sleep_for(std::chrono::seconds(2));
-                        {
-                                std::unique_lock _(mtx);
-                                std::cout << std::format("{} get mutex\n", i);
-                                flag -= 1;
-                        }
-                        std::cout << std::format("{} over\n", i);
-                        cv.notify_one();
-                };
-                // int i=0;
-                for (int i = 0; i < n; i++) {
-                        tq.emplace(std::thread(func, i));
-                }
-        };
-        ~T() {
-                std::unique_lock _(mtx);
-                std::cout << std::format("~ get mutex\n");
-                cv.wait(_, [this] {
-                        std::cout << std::format("flag: {}\n", flag);
-                        return flag == 0;
-                });
-        }
-};
+    std::cout << sck.remote_endpoint().port() << std::endl;
+}
 
 int main(int argc, char const* argv[]) {
-        T();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        return 0;
+    using namespace asio;
+    std::vector<std::thread> tvec;
+    tvec.emplace_back(std::thread(fun, 8080));
+    tvec.emplace_back(std::thread(fun, 8081));
+    for (auto&& e : tvec) {
+        e.join();
+    }
 }
