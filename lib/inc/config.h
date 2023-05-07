@@ -4,12 +4,15 @@
 
 #ifndef CN_CD_CONFIG_H
 #define CN_CD_CONFIG_H
-#include "cstdint"
-// const int block_size = 512;
-#define THREAD_N 6
-#define BUFFSIZE 512
-#define JSONSIZE 2048
-#define PROGRESS "progress"
-// namespace cncd
+#include "string"
+
+extern const int         BUFFSIZE;
+extern const int         THREAD_N;
+extern const int         JSONSIZE;
+extern const int         UDPPORT;
+extern const int         TCPPORT;
+extern const std::string PROGRESS;
+extern const std::string BROADCAST;
+extern const std::string RESPONSE;
 
 #endif  // CN_CD_CONFIG_H
