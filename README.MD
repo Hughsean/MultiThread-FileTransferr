@@ -27,14 +27,31 @@ s->>c:接收无误
 error::connection_reset(远程主机强迫关闭了一个现有的连接)
 error::connection_aborted(你的主机中的软件中止了一个已建立的连接)
 
-传输线程之间通信规定
+DownWork==>UpWork:
 
 ```json
 {
-	"id":int,			//文件块id
-	"progress":int,		//接收进度
+	"progress":"int: 接收进度",
 }
 ```
+
+Scan:
+
+```json
+{
+    "BROADCAST":"BROADCAST"
+}
+```
+
+Respond:
+
+```json
+{
+    "RESPONSE":"RESPONSE"
+}
+```
+
+
 
 ### 疑问
 

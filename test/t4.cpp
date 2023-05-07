@@ -1,10 +1,8 @@
-﻿#include "asio.hpp"
+﻿#define _WIN32_WINNT 0x0601
+
+#include "asio.hpp"
 #include "format"
-#include "functional"
-#include "future"
 #include "iostream"
-#include "mutex"
-#include "queue"
 #include "thread"
 #include "vector"
 #include "json/json.h"

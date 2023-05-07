@@ -7,8 +7,10 @@
 #define _WIN32_WINNT 0x0601
 
 #include "asio.hpp"
+#include "condition_variable"
 #include "config.h"
 #include "fileblock.h"
+#include "mutex"
 #include "queue"
 #include "thread"
 #include "json/json.h"
@@ -17,69 +19,106 @@ namespace mtft {
     using namespace asio;
     using socket_ptr = std::shared_ptr<ip::tcp::socket>;
 
-    enum class WorkState { F, W, R };
+    enum class TaskType { Down, Up };
+    /// @brief json.clear(); buf ==> json
+    /// @param buf 缓存
+    /// @param json Json::Value
+    /// @return 操作是否成功
+    bool ReadJsonFromBuf(streambuf &buf, Json::Value &json);
+    /// @brief json ==> buf; json.clear()
+    /// @param buf 缓存
+    /// @param json Json::Value
+    void WriteJsonToBuf(streambuf &buf, Json::Value &json);
 
     class Work {
     public:
-        virtual void Func() = 0;
-        Work(LogAppender::ptr log);
+        using ptr = std::shared_ptr<Work>;
+        // XXX:test
+        virtual void Func();
+        explicit Work(int i);
+        //
+        Work();
+        Work(Work &&) = delete;
+        Work(Work &)  = delete;
+        void stop();
         virtual ~Work() = default;
 
     protected:
-        bool              ReadJson(streambuf &buf, Json::Value &json);
-        void              WriteJson(streambuf &buf, Json::Value &json);
-        int               mid;
-        io_context        mioc;
-        LogAppender::ptr  mlog;
-        ip::tcp::endpoint medp;
-        WorkState         mState;
+        int        mid;
+        io_context mioc;
+        bool       mstop;
     };
 
     class UpWork : public Work {
     public:
-        UpWork(LogAppender::ptr log, const ip::tcp::endpoint &edp, FileReader::ptr reader);
+        UpWork(const ip::tcp::endpoint &remote, FileReader::ptr reader);
+        UpWork(UpWork &&) = delete;
+        UpWork(UpWork &)  = delete;
         void Func() override;
 
     private:
-        bool uploadFunc(socket_ptr sck);
-        FileReader::ptr mReader;
+        bool              uploadFunc(socket_ptr sck);
+        FileReader::ptr   mReader;
+        ip::tcp::endpoint mremote;
     };
 
     class DownWork : public Work {
     public:
-        DownWork(LogAppender::ptr log, FileWriter::ptr fwriter);
+        DownWork(FileWriter::ptr fwriter);
+        DownWork(DownWork &&) = delete;
+        DownWork(DownWork &)  = delete;
         void Func() override;
-        int  GetEdp();
+        int  GetPort();
 
     private:
         bool                               downloadFunc(socket_ptr sck);
         FileWriter::ptr                    mFwriter;
         std::shared_ptr<ip::tcp::acceptor> macp;
+        ip::tcp::endpoint                  medp;
     };
 
     class Task {
     public:
-        Task(LogAppender::ptr log, const std::vector<FileWriter::ptr> &vec);
-        Task(LogAppender::ptr log, const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec);
-        void run(int n);
-        int  getN();
+        using ptr = std::shared_ptr<Task>;
+        Task(const std::vector<FileWriter::ptr> &vec);
+        Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec);
+        // XXX:test
+        Task(const std::vector<Work::ptr> &vec);
+        Task(Task &)  = delete;
+        Task(Task &&) = delete;
+        void      stop();
+        int       getN();
+        Work::ptr getWork(int i);
 
     private:
-        std::vector<std::shared_ptr<Work>> mWorks;
+        std::vector<Work::ptr> mWorks;
     };
 
     /// @brief 作业池
     class TaskPool {
     public:
-        TaskPool(int n);
+        explicit TaskPool(int n);
         ~TaskPool();
-        void submit(std::shared_ptr<Task> task);
+        void submit(Task::ptr task);
+
+        TaskPool(TaskPool &)            = delete;
+        TaskPool(TaskPool &&)           = delete;
+        TaskPool operator=(TaskPool &)  = delete;
+        TaskPool operator=(TaskPool &&) = delete;
 
     private:
-        const int                         n;             // 线程个数
-        std::queue<std::shared_ptr<Task>> mTaskQueue;    // 任务队列
-        std::vector<std::thread>          mThreads;      // 工作线程
-        std::shared_ptr<Task>             mCurrentTask;  // 当前任务
+        bool                     allFinish();
+        void                     Reset();
+        const int                num;         // 线程个数
+        volatile bool            mstop;       //
+        std::queue<Task::ptr>    mTaskQueue;  // 任务队列
+        std::vector<std::thread> mThreads;    // 工作线程
+        Task::ptr                mCurrent;    // 当前任务
+        std::condition_variable  condC;       //
+        std::condition_variable  condQ;       //
+        std::mutex               mtxC;        // mCurrent锁
+        std::mutex               mtxQ;
+        std::atomic<bool>       *finish;
     };
 
 }  // namespace mtft

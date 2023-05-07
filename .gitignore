@@ -1,5 +1,8 @@
 .txt
 .idea
-/cmake-build-debug
-/build
-/.vscode
+cmake-build-debug
+build
+.vscode
+out
+.vs
+CMakeSettings.json
