@@ -76,8 +76,9 @@ namespace mtft {
         DownWork(const FileWriter::ptr &fwriter);
         DownWork(DownWork &&) = delete;
         DownWork(DownWork &)  = delete;
-        void Func() override;
-        int  GetPort();
+        void            Func() override;
+        int             GetPort();
+        FileWriter::ptr getFw();
 
     private:
         bool                               downloadFunc(const socket_ptr &sck);
@@ -89,8 +90,8 @@ namespace mtft {
     class Task {
     public:
         using ptr = std::shared_ptr<Task>;
-        Task(const std::vector<FileWriter::ptr> &vec);
-        Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec);
+        Task(const std::vector<FileWriter::ptr> &vec, const std::string &fname);
+        Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec, const std::string &fname);
         // XXX:test
         // Task(const std::vector<Work::ptr> &vec);
         Task(Task &)  = delete;
@@ -99,10 +100,14 @@ namespace mtft {
         uint32_t                          getN();
         Work::ptr                         getWork(int i);
         std::vector<std::tuple<int, int>> getPorts();
+        std::vector<FileWriter::ptr>      getVec();
+        std::string                       getName();
+        TaskType                          getType();
 
     private:
         std::vector<Work::ptr> mWorks;
         TaskType               type;
+        std::string            fName;
     };
 
     /// @brief 作业池
@@ -111,7 +116,6 @@ namespace mtft {
         explicit TaskPool(int n);
         ~TaskPool();
         void submit(const Task::ptr &task);
-
         TaskPool(TaskPool &)            = delete;
         TaskPool(TaskPool &&)           = delete;
         TaskPool operator=(TaskPool &)  = delete;

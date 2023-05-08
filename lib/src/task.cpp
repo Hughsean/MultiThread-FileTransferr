@@ -8,12 +8,11 @@
 
 namespace mtft {
     using namespace asio;
-    // namespace log = spdlog;
 
     bool ReadJsonFromBuf(streambuf& buf, Json::Value& json) {
         auto        size = buf.data().size();
         std::string str((const char*)buf.data().data(), size);
-        json.clear();
+        json = Json::Value();
         if (Json::Reader().parse(str, json)) {
             buf.consume(size);
             return true;
@@ -24,21 +23,12 @@ namespace mtft {
     uint32_t WriteJsonToBuf(streambuf& buf, Json::Value& json) {
         auto str  = json.toStyledString();
         auto size = str.size() * sizeof(char);
-        json.clear();
+        json      = Json::Value();
         std::memcpy(buf.prepare(size).data(), str.data(), size);
         buf.commit(size);
         return size;
     }
-    // XXX:test
-    // void Work::Func() {
-    //     log::info("{}", mid);
-    //     std::this_thread::sleep_for(std::chrono::seconds(10));
-    // }
 
-    // Work::Work(int i) {
-    //     mid = i;
-    // }
-    ///////////
     Work::Work(int i) {
         mstop = false;
         mid   = i;
@@ -56,34 +46,31 @@ namespace mtft {
     }
 
     bool UpWork::uploadFunc(const socket_ptr& sck) {
-        // FileReader::ptr freader;
-        streambuf   buf;
-        error_code  ec;
-        uint32_t    size;
-        uint32_t    progress;
-        Json::Value json;
-        // 接收JSON文件
-        size = read(*sck.get(), buf.prepare(JSONSIZE), ec);
-        if (ec) {
-            spdlog::warn("work({}): {}", mid, ec.message());
+        try {
+            streambuf   buf;
+            error_code  ec;
+            uint32_t    size;
+            uint32_t    progress;
+            Json::Value json;
+            // 接收JSON文件
+            size = sck->receive(buf.prepare(JSONSIZE));
+            buf.commit(size);
+            // 解析JSON, 更改相应配置
+            ReadJsonFromBuf(buf, json);
+            progress = json[PROGRESS].asInt();
+            mReader->seek(progress);
+            // 发送文件
+            while ((!mReader->finished() || buf.data().size() != 0) && !mstop) {
+                size = mReader->read((buf.prepare(BUFFSIZE).data()), BUFFSIZE);
+                buf.commit(size);
+                size = write(*sck, buf);
+                // spdlog::info("size:{}", size);
+            }
+        }
+        catch (const std::exception& e) {
+            spdlog::warn("upwork({}): {}", mid, e.what());
             return false;
         }
-        // 解析JSON, 更改相应配置
-        ReadJsonFromBuf(buf, json);
-        progress = json[PROGRESS].asInt();
-        mReader->seek(progress);
-        // 发送文件
-        while (!mReader->finished() && buf.data().size() != 0 && !mstop) {
-            size = mReader->read((buf.prepare(BUFFSIZE).data()), BUFFSIZE);
-            buf.commit(size);
-            size = write(*sck, buf, ec);
-            if (ec) {
-                spdlog::warn("work({}): {}", mid, ec.message());
-                return false;
-            }
-            buf.consume(size);
-        }
-        // TODO:确认对方全部接收
         return true;
     }
 
@@ -98,6 +85,8 @@ namespace mtft {
                 continue;
             }
             else if (this->uploadFunc(sck)) {
+                streambuf buf;
+                sck->receive(buf.prepare(BUFFSIZE));
                 break;
             }
         }
@@ -112,76 +101,72 @@ namespace mtft {
     }
 
     bool DownWork::downloadFunc(const socket_ptr& sck) {
-        streambuf   buf;
-        error_code  ec;
-        Json::Value json;
-        uint32_t    size;
-        // 向json写入配置
-        json[PROGRESS] = mFwriter->getProgress();
-        // json配置写入缓存, 并发送
-        WriteJsonToBuf(buf, json);
-        size = write(*sck, buf.data(), ec);
-        if (ec) {
-            spdlog::warn("downwork({}): {}", mid, ec.message());
-            return false;
-        }
-        buf.consume(size);
-        while (!mFwriter->finished() && !mstop) {
-            size = read(*sck, buf.prepare(BUFFSIZE), ec);
-            buf.commit(size);
-            size = mFwriter->write(buf.data().data(), size);
-            buf.consume(size);
-            if (ec) {
-                spdlog::warn("downwork({}): {}", mid, ec.message());
-                return false;
+        try {
+            streambuf   buf;
+            Json::Value json;
+            uint32_t    size;
+            // 向json写入配置
+            json[PROGRESS] = mFwriter->getProgress();
+            // json配置写入缓存, 并发送
+            WriteJsonToBuf(buf, json);
+            write(*sck, buf);
+            while (!mFwriter->finished() && !mstop) {
+                size = sck->receive(buf.prepare(BUFFSIZE));
+                buf.commit(size);
+                size = mFwriter->write(buf.data().data(), size);
+                buf.consume(size);
             }
         }
-        // TODO: 文件写完反馈
+        catch (const std::exception& e) {
+            spdlog::warn("downwork({}): {}", mid, e.what());
+            return false;
+        }
         return true;
     }
 
     void DownWork::Func() {
         error_code ec;
         while (!mstop) {
-            ip::tcp::acceptor acp(mioc, medp);
-            acp.listen();
-            auto sck = std::make_shared<ip::tcp::socket>(acp.accept(ec));
+            // ip::tcp::acceptor acp(mioc, medp);
+            // acp.listen();
+            auto sck = std::make_shared<ip::tcp::socket>(macp->accept(ec));
             if (ec) {
                 spdlog::warn("downwork({}): {}", mid, ec.message());
                 continue;
             }
             else if (downloadFunc(sck)) {
+                sck->send(buffer("PodType (&data)[N]"));
                 break;
             };
         }
         mFwriter->close();
-        spdlog::info("downwork({}): 已完成数据发送", mid);
+        spdlog::info("downwork({}): 已完成数据接收", mid);
     }
 
     int DownWork::GetPort() {
         return macp->local_endpoint().port();
     }
-
-    Task::Task(const std::vector<FileWriter::ptr>& vec) {
-        type = TaskType::Down;
+    FileWriter::ptr DownWork::getFw() {
+        return mFwriter;
+    }
+    Task::Task(const std::vector<FileWriter::ptr>& vec, const std::string& fname) {
+        fName = fname;
+        type  = TaskType::Down;
         mWorks.reserve(vec.size());
         for (auto&& e : vec) {
             mWorks.emplace_back(std::make_shared<DownWork>(e));
         }
     }
 
-    Task::Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>>& vec) {
-        type = TaskType::Up;
+    Task::Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>>& vec, const std::string& fname) {
+        fName = fname;
+        type  = TaskType::Up;
         mWorks.reserve(vec.size());
         for (auto&& [e, r] : vec) {
             mWorks.emplace_back(std::make_shared<UpWork>(e, r));
         }
     }
-    // Task::Task(const std::vector<Work::ptr>& vec) {
-    //     for (auto&& e : vec) {
-    //         mWorks.emplace_back(e);
-    //     }
-    // }
+
     void Task::stop() {
         for (auto&& e : mWorks) {
             e->stop();
@@ -210,7 +195,24 @@ namespace mtft {
         }
         return vec;
     }
-
+    std::vector<FileWriter::ptr> Task::getVec() {
+        if (type != TaskType::Down) {
+            spdlog::error("{}:{}", __FILE__, __LINE__);
+            abort();
+        }
+        std::vector<FileWriter::ptr> vec;
+        vec.reserve(mWorks.size());
+        for (auto&& e : mWorks) {
+            vec.emplace_back(dynamic_cast<DownWork*>(e.get())->getFw());
+        }
+        return vec;
+    };
+    std::string Task::getName() {
+        return fName;
+    }
+    TaskType Task::getType() {
+        return type;
+    }
     TaskPool::TaskPool(int n) : num(n) {
         mstop    = false;
         mCurrent = nullptr;
@@ -245,22 +247,27 @@ namespace mtft {
                 {
                     {
                         std::unique_lock<std::mutex> _(mtxC);
-                        condC.wait(_, [this] {
-                            return mstop || ((allFinish() || mCurrent == nullptr) && !mTaskQueue.empty());
-                        });
+                        condC.wait(_, [this] { return mstop || (allFinish() || mCurrent == nullptr); });
                         if (mstop) {
                             break;
+                        }
+                        if (allFinish() && mCurrent->getType() == TaskType::Down) {
+                            FileWriter::merge(mCurrent->getName(), mCurrent->getVec());
                         }
                         // 访问mTaskQueue临界资源
                         {
                             std::unique_lock<std::mutex> _ul(mtxQ);
+                            condQ.wait(_ul, [this] { return mstop || !mTaskQueue.empty(); });
+                            if (mstop) {
+                                break;
+                            }
                             mCurrent = mTaskQueue.front();
                             mTaskQueue.pop();
                         }
+                        spdlog::info("调度线程thread({}): 完成一次调度", n);
                         Reset();
                     }
                     condC.notify_all();
-                    spdlog::info("调度线程thread({})完成一次调度", n);
                 }
             }
             spdlog::info("调度线程thread({})退出", n);

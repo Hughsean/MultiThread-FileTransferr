@@ -15,6 +15,7 @@ extern const int         THREAD_N;
 extern const int         JSONSIZE;
 extern const int         UDPPORT;
 extern const int         TCPPORT;
+extern const std::string DIR;
 extern const std::string PROGRESS;
 extern const std::string TYPE;
 extern const std::string RESPONSE;
