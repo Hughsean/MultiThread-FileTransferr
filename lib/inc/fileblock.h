@@ -81,7 +81,8 @@ namespace mtft {
         const std::string&      getFname();
         uint32_t                getProgress();
         static std::vector<ptr> Builder(int n, uint32_t totalsize, const std::string& filename,
-                                           const std::string& path);
+                                        const std::string& path);
+        static void             merge(const std::string&fname,const std::vector<ptr>& vec);
         void                    close();
 
     private:

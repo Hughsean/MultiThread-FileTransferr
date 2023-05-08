@@ -1,10 +1,11 @@
 #include "config.h"
 
-const int         THREAD_N = 6;
+const int         THREAD_N = 12;
 const int         BUFFSIZE = 1024;
 const int         JSONSIZE = 5120;
 const int         UDPPORT  = 8080;
 const int         TCPPORT  = 9090;
+const std::string DIR      = "tmp";
 const std::string PROGRESS = "progress";
 const std::string TYPE     = "TYPE";
 const std::string SCAN     = "SCAN";

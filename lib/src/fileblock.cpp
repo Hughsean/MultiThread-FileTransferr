@@ -3,89 +3,15 @@
 //
 #define _WIN32_WINNT 0x0601
 #include "fileblock.h"
+#include "filesystem"
+#include "format"
 #include "fstream"
 #include "spdlog/spdlog.h"
-// #include "log/log.h"
-// #include "format"
-// #include "mutex"
-// #include "utility"
 
 namespace mtft {
-    // namespace log = spdlog;
-    // std::mutex    FileBlock::m_mutex{};
-    // std::ofstream FileBlock::m_ofs;
-
-    // using namespace asio;
-    // FileBlock::FileBlock(int id, Type type, const std::string &&str,
-    //                      uint32_t offset, uint32_t length, LogAppender::ptr log)
-    //     : m_id(id), m_log(std::move(log)), m_type(type), m_file(str),
-    //       m_offset(offset), m_length(length), m_progress(0) {
-    //         if (m_type == Type::DOWNLOAD) {
-    //                 m_ofs.open(m_file, std::ios::app | std::ios::binary);
-    //         }
-    //         else {
-    //                 m_ifs.open(m_file, std::ios::in | std::ios::binary);
-    //                 m_ifs.seekg(m_offset);
-    //         }
-    // }
-
-    // bool FileBlock::isFinished() const {
-    //         return m_progress + 1 == m_length;
-    // }
-
-    // uint32_t FileBlock::read(BYTE *data, size_t buffersize) {
-    //         if (m_type == Type::DOWNLOAD) {
-    //                 m_log->log(
-    //                     LogLevel::DEBUG,
-    //                     LogEvent::make(__FILE__, __LINE__,
-    //                     "写模式不能读文件\n"));
-    //                 abort();
-    //         }
-    //         if (m_length <= buffersize + m_progress) {
-    //                 m_log->log(LogLevel::DEBUG,
-    //                            LogEvent::make(__FILE__, __LINE__,
-    //                            "超出文件块\n"));
-    //                 abort();
-    //         }
-    //         uint32_t remain = m_length - m_progress;
-    //         uint32_t size   = remain < buffersize ? remain : buffersize;
-    //         m_ifs.read((char *)data, size);
-    //         m_progress += size;
-    //         return size;
-    // }
-    // uint32_t FileBlock::write(BYTE *data, size_t buffersize) {
-    //         if (m_type == Type::UPLOAD) {
-    //                 m_log->log(
-    //                     LogLevel::DEBUG,
-    //                     LogEvent::make(__FILE__, __LINE__,
-    //                     "读模式不能写文件\n"));
-    //                 abort();
-    //         }
-    //         if (m_length <= buffersize + m_progress) {
-    //                 m_log->log(LogLevel::DEBUG,
-    //                            LogEvent::make(__FILE__, __LINE__,
-    //                            "超出文件块\n"));
-    //                 abort();
-    //         }
-
-    //         std::unique_lock _(m_mutex);
-    //         _.lock();
-
-    //         m_ofs.seekp(m_offset + m_progress);
-    //         uint32_t remain = m_length - m_progress;
-    //         uint32_t size   = remain < buffersize ? remain : buffersize;
-
-    //         m_ofs.write((char *)data, size);
-    //         m_progress += size;
-    //         return size;
-    // }
-    // int FileBlock::getID() const {
-    //         return m_id;
-    // }
-    /*--------------------------------------------------------------------------*/
     FileReader::FileReader(int id, const std::string &fpath, uint32_t offset, uint32_t length)
         : mID(id), mPathWithFileName(fpath), mOffset(offset), mLength(length), mProgress(0) {
-        mifs.open(fpath, std::ios::binary | std::ios::in);
+        mifs.open(fpath, std::ios::binary);
         if (!mifs.good()) {
             spdlog::error("文件打开失败({})", fpath);
             abort();
@@ -123,17 +49,21 @@ namespace mtft {
             spdlog::error("n<=1");
             abort();
         }
+        // if (n == 1) {
+        //     return { std::make_shared<FileReader>(n - 1, fpath, 0, totalsize) };
+        // }
         uint32_t         blocksize = totalsize / (n - 1);
         uint32_t         lastblock = totalsize - (n - 1) * blocksize;
         std::vector<ptr> vec;
         vec.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileReader>(i, fpath, blocksize * i, blocksize));
+            spdlog::info("id:{:2},offset:{:10},blocksize:{:10}", i, i * blocksize, blocksize);
         }
         vec.emplace_back(std::make_shared<FileReader>(n - 1, fpath, n * blocksize, lastblock));
+        spdlog::info("id:{:2},offset:{:10},blocksize:{:10}", n - 1, n * blocksize, lastblock);
         return vec;
     }
-
     FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, uint32_t offset,
                            uint32_t length)
         : mid(id), mOffset(offset), mLength(length), mPath(path) {
@@ -150,16 +80,21 @@ namespace mtft {
     bool FileWriter::finished() {
         return mProgress == mLength;
     }
-
-    uint32_t FileWriter::write(const void *data, uint32_t buffersize) {
+    // XXX
+    std::atomic_int64_t iii;
+    uint32_t            FileWriter::write(const void *data, uint32_t buffersize) {
         if (finished()) {
             spdlog::warn("尝试在已写完的块中继续写入内容");
             return 0;
         }
-        uint32_t remain = mLength - mProgress - 1;
+        uint32_t remain = mLength - mProgress;
         uint32_t size   = remain < buffersize ? remain : buffersize;
         mofs.write((char *)data, size);
         mProgress += size;
+        iii++;
+        if (iii % 10000 == 0) {
+            spdlog::info("write{}", size * 10000);
+        }
         return size;
     }
 
@@ -187,9 +122,34 @@ namespace mtft {
         vec.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, i * blocksize, blocksize));
+            spdlog::info("id:{:2},offset:{:10},blocksize:{:10}", i, i * blocksize, blocksize);
         }
         vec.emplace_back(std::make_shared<FileWriter>(n - 1, filename, path, n * blocksize, lastblock));
+        spdlog::info("id:{:2},offset:{:10},blocksize:{:10}", n - 1, n * blocksize, lastblock);
         return vec;
+    }
+    void FileWriter::merge(const std::string &fname, const std::vector<ptr> &vec) {
+        auto str = std::format("{}\\{}", DIR, fname);
+        spdlog::info("创建文件: {}", str);
+        std::ofstream ofs(str, std::ios::binary);
+        if (!ofs.good()) {
+            spdlog::warn("{} 合并失败: 无法创建文件", str);
+            return;
+        }
+        for (auto &&e : vec) {
+            auto          temp = std::format("{}\\{}", DIR, e->mFileName);
+            std::ifstream _(temp, std::ios::binary);
+            if (!_.good()) {
+                spdlog::warn("打开文件 {} 失败", temp);
+                ofs.close();
+                std::filesystem::remove(str);
+                return;
+            }
+            spdlog::info("合并文件块: {}", temp);
+            ofs << _.rdbuf();
+            _.close();
+        }
+        ofs.close();
     }
     void FileWriter::close() {
         mofs.close();

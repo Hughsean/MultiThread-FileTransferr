@@ -3,29 +3,33 @@
 //
 #include "app.h"
 #include "config.h"
+#include "filesystem"
 #include "spdlog/spdlog.h"
 #include "task.h"
 #include "json/value.h"
 
 namespace mtft {
 
-    App::App(const std::string& path, int poolsize) : mpool(poolsize) {
-        mstop      = false;
-        mpath      = path;
-        mudplisten = std::thread([this] { udplisten(); });
-        mtcplisten = std::thread([this] { tcplisten(); });
+    App::App() : mpool(THREAD_N) {
+        mstop = false;
+        // mpath = DIR;
+        // mudplisten = std::thread([this] { udplisten(); });
+        // mtcplisten = std::thread([this] { tcplisten(); });
         edpvec.reserve(10);
+        std::filesystem::create_directories(DIR);
+        spdlog::info("工作目录: {}", DIR);
     }
     App::~App() {
         mstop = true;
-        io_context      ioc;
-        ip::udp::socket usck(ioc, ip::udp::endpoint(ip::udp::v4(), 0));
-        ip::tcp::socket tsck(ioc, ip::tcp::endpoint(ip::tcp::v4(), 0));
-        usck.send_to(buffer(""), ip::udp::endpoint(ip::address_v4::loopback(), UDPPORT));
-        tsck.connect(ip::tcp::endpoint(ip::address_v4::loopback(), TCPPORT));
-        usck.close();
-        mudplisten.join();
-        mtcplisten.join();
+        // io_context ioc;
+        // ip::udp::socket usck(ioc, ip::udp::endpoint(ip::udp::v4(), 0));
+        // ip::tcp::socket tsck(ioc, ip::tcp::endpoint(ip::tcp::v4(), 0));
+        // usck.send_to(buffer(""), ip::udp::endpoint(ip::address_v4::loopback(), UDPPORT));
+        // tsck.connect(ip::tcp::endpoint(ip::address_v4::loopback(), TCPPORT));
+        // usck.close();
+        // mudplisten.join();
+        // mtcplisten.join();
+        std::filesystem::remove_all(DIR);
     }
 
     void App::send(const std::string& fPath, const ip::address_v4& ip) {
@@ -43,18 +47,19 @@ namespace mtft {
             sck.connect(edp);
             // 获取文件信息[name, size]
             int64_t totalsize = infs.seekg(0, std::ios::end).tellg();
-            auto    wvec      = FileReader::Builder(THREAD_N, totalsize, fPath);
+            auto    rvec      = FileReader::Builder(THREAD_N, totalsize, fPath);
             auto    name      = fPath.substr(fPath.find_last_of('\\') + 1);
             spdlog::info("name: {} size:{}", name, totalsize);
-            auto rvec = FileReader::Builder(THREAD_N, totalsize, fPath);
             // 信息写入json, 并发送到对端
             json[FILENAME] = name;
             json[FILESIZE] = totalsize;
             WriteJsonToBuf(buf, json);
-            auto size = write(sck, buf.data());
+            auto size = write(sck, buf);
             buf.consume(size);
             // 接收对端传回的配置信息
-            size = read(sck, buf.prepare(JSONSIZE));
+            size = sck.receive(buf.prepare(JSONSIZE));
+            buf.commit(size);
+            ReadJsonFromBuf(buf, json);
             std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> vec;
             vec.reserve(json.size());
             for (auto iter = json.begin(); iter != json.end(); iter++) {
@@ -62,16 +67,16 @@ namespace mtft {
                 auto port = (*iter)[PORT].asInt();
                 vec.emplace_back(ip::tcp::endpoint(ip, port), rvec.at(id));
             }
-            json.clear();
+            json = Json::Value();
             //
-            auto task = std::make_shared<Task>(vec);
+            auto task = std::make_shared<Task>(vec, name);
             json[OK]  = OK;
             WriteJsonToBuf(buf, json);
-            write(sck, buf.data());
+            write(sck, buf);
             mpool.submit(task);
         }
-        catch (const error_code& ec) {
-            spdlog::warn(ec.message());
+        catch (const std::exception& e) {
+            spdlog::warn("send {} to {}: {}", fPath, ip.to_string(), e.what());
         }
     }
 
@@ -132,25 +137,26 @@ namespace mtft {
                     break;
                 }
                 // 接收文件信息, 配置相应的数据结构
-                auto size = read(sck, buf.prepare(JSONSIZE));
+                // auto size = read(sck, buf.prepare(JSONSIZE));
+                auto size = sck.receive(buf.prepare(JSONSIZE));
+                buf.commit(size);
                 ReadJsonFromBuf(buf, json);
-                auto totalsize = json[FILESIZE].asInt64();
+                auto totalsize = json[FILESIZE].asInt();
                 auto name      = json[FILENAME].asString();
-                auto wvec      = FileWriter::Builder(THREAD_N, totalsize, name, mpath);
-                auto task      = std::make_shared<Task>(wvec);
+                spdlog::info("name:{} size:{}", name, totalsize);
+                auto wvec = FileWriter::Builder(THREAD_N, totalsize, name, DIR);
+                auto task = std::make_shared<Task>(wvec, name);
                 // 将FileWriter id对应的端口发送给对方
                 auto id_port = task->getPorts();
-                json.clear();
+                json         = Json::Value();
                 for (auto&& [id, port] : id_port) {
                     elem[ID]   = id;
                     elem[PORT] = port;
                     json.append(elem);
                 }
                 WriteJsonToBuf(buf, json);
-                size = write(sck, buf.data());
-                buf.consume(size);
-                //
-                read(sck, buf.prepare(JSONSIZE));
+                write(sck, buf);
+                sck.receive(buf.prepare(JSONSIZE));
                 mpool.submit(task);
             }
             catch (const error_code& ec) {
