@@ -60,7 +60,7 @@ namespace mtft {
         /// @brief 取得当前块id
         /// @return
         int                     getID();
-        static std::vector<ptr> ReadersBuilder(int n, uint32_t totalsize, const std::string& pathWithfname);
+        static std::vector<ptr> Builder(int n, uint32_t totalsize, const std::string& pathWithfname);
 
     private:
         const int     mID;
@@ -80,7 +80,7 @@ namespace mtft {
         int                     getID();
         const std::string&      getFname();
         uint32_t                getProgress();
-        static std::vector<ptr> fwsCreator(int n, uint32_t totalsize, const std::string& filename,
+        static std::vector<ptr> Builder(int n, uint32_t totalsize, const std::string& filename,
                                            const std::string& path);
         void                    close();
 

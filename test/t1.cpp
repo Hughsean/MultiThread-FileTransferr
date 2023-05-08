@@ -2,35 +2,22 @@
 // Created by xSeung on 2023/4/20.
 //
 #define _WIN32_WINNT 0x0601
+#include "app.h"
 #include "asio.hpp"
+#include "chrono"
 #include "fileblock.h"
 #include "format"
-#include "fstream"
 #include "iostream"
 #include "spdlog/spdlog.h"
-#include "string"
-#include "thread"
-#include "json/json.h"
+
 int main() {
     using namespace asio;
-    int                      i = 0;
-    io_context               ioc;
-    ip::tcp::endpoint        edp(ip::address_v4::any(), 8080);
-    ip::tcp::acceptor        acp(ioc, edp);
-    error_code               ec;
-    ip::udp::endpoint        uedp(ip::address_v4::any(), 0);
-    ip::udp::endpoint        toendp(ip::address_v4::broadcast(), 8080);
-    std::vector<std::thread> vt;
+    using namespace mtft;
+    App a("D:", THREAD_N);
+    a.scan();
     
-    for (size_t i = 0; i < 10; i++) {
-        vt.emplace_back([&] {
-            ip::udp::socket usck(ioc, uedp);
-            usck.set_option(socket_base::broadcast(true));
-            usck.send_to(buffer("1"), toendp);
-        });
-    }
-    for (auto &&e : vt) {
-        e.join();
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 
@@ -66,7 +53,7 @@ void fun3() {
     using namespace asio;
     using namespace mtft;
     std::string readpath(R"(C:\Users\xSeung\Videos\Captures\A.mp4)");
-    int         pos   = readpath.find_last_of('\\');
+    auto        pos   = readpath.find_last_of('\\');
     int         n     = 3;
     std::string fname = readpath.substr(pos + 1);
     std::string writepath(R"(C:\Users\xSeung\Desktop)");
@@ -75,8 +62,8 @@ void fun3() {
     uint32_t    lastblock = totalsize - (n - 1) * blocksize;
     // LogAppender::ptr log       = std::make_shared<LogAppender>(std::cout);
     std::cout << std::format("{} {} {} {}\n", fname, totalsize, blocksize, lastblock);
-    auto vecr = FileReader::ReadersBuilder(n, totalsize, readpath);
-    auto vecw = FileWriter::fwsCreator(n, totalsize, fname, writepath);
+    auto vecr = FileReader::Builder(n, totalsize, readpath);
+    auto vecw = FileWriter::Builder(n, totalsize, fname, writepath);
 
     auto func = [&](int i) {
         auto r = vecr.at(i).get();
@@ -93,8 +80,9 @@ void fun3() {
         std::cout << std::format("{} over\n", i);
     };
     std::vector<std::thread> vt;
+    vt.reserve(n);
     for (int i = 0; i < n; i++) {
-        vt.emplace_back(std::thread(func, i));
+        vt.emplace_back(func, i);
     }
     for (auto &&e : vt) {
         e.join();
@@ -104,7 +92,8 @@ void fun3() {
     for (auto &&e : vecw) {
         auto        ee = e.get();
         auto        fn = ee->getFname();
-        std::string fp = writepath + R"(\)" + fn;
+        std::string fp = writepath + R"(\)";
+        fp.append(fn);
         std::cout << fp << std::endl;
         std::ifstream infs(fp, std::ios::binary);
         if (infs.good()) {

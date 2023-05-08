@@ -1,6 +1,14 @@
 ﻿//
 // Created by xSeung on 2023/4/21.
 //
+/**
+ * @brief 任务模块
+ *
+ * @version 0.1
+ * @author 鳯玖 (xSeung@163.com)
+ * @date 2023-04-21
+ * @copyright Copyright (c) 2023
+ */
 
 #ifndef MAIN_TASK_H
 #define MAIN_TASK_H
@@ -28,18 +36,19 @@ namespace mtft {
     /// @brief json ==> buf; json.clear()
     /// @param buf 缓存
     /// @param json Json::Value
-    void WriteJsonToBuf(streambuf &buf, Json::Value &json);
+    uint32_t WriteJsonToBuf(streambuf &buf, Json::Value &json);
 
     class Work {
     public:
         using ptr = std::shared_ptr<Work>;
         // XXX:test
-        virtual void Func();
-        explicit Work(int i);
+        virtual void Func() = 0;
+        // explicit Work(int i);
         //
-        Work();
-        Work(Work &&) = delete;
+        explicit Work(int i);
         Work(Work &)  = delete;
+        Work(Work &&) = delete;
+        int  getID();
         void stop();
         virtual ~Work() = default;
 
@@ -51,27 +60,27 @@ namespace mtft {
 
     class UpWork : public Work {
     public:
-        UpWork(const ip::tcp::endpoint &remote, FileReader::ptr reader);
+        UpWork(const ip::tcp::endpoint &remote, const FileReader::ptr &reader);
         UpWork(UpWork &&) = delete;
         UpWork(UpWork &)  = delete;
         void Func() override;
 
     private:
-        bool              uploadFunc(socket_ptr sck);
+        bool              uploadFunc(const socket_ptr &sck);
         FileReader::ptr   mReader;
         ip::tcp::endpoint mremote;
     };
 
     class DownWork : public Work {
     public:
-        DownWork(FileWriter::ptr fwriter);
+        DownWork(const FileWriter::ptr &fwriter);
         DownWork(DownWork &&) = delete;
         DownWork(DownWork &)  = delete;
         void Func() override;
         int  GetPort();
 
     private:
-        bool                               downloadFunc(socket_ptr sck);
+        bool                               downloadFunc(const socket_ptr &sck);
         FileWriter::ptr                    mFwriter;
         std::shared_ptr<ip::tcp::acceptor> macp;
         ip::tcp::endpoint                  medp;
@@ -83,15 +92,17 @@ namespace mtft {
         Task(const std::vector<FileWriter::ptr> &vec);
         Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec);
         // XXX:test
-        Task(const std::vector<Work::ptr> &vec);
+        // Task(const std::vector<Work::ptr> &vec);
         Task(Task &)  = delete;
         Task(Task &&) = delete;
-        void      stop();
-        int       getN();
-        Work::ptr getWork(int i);
+        void                              stop();
+        uint32_t                          getN();
+        Work::ptr                         getWork(int i);
+        std::vector<std::tuple<int, int>> getPorts();
 
     private:
         std::vector<Work::ptr> mWorks;
+        TaskType               type;
     };
 
     /// @brief 作业池
@@ -99,7 +110,7 @@ namespace mtft {
     public:
         explicit TaskPool(int n);
         ~TaskPool();
-        void submit(Task::ptr task);
+        void submit(const Task::ptr &task);
 
         TaskPool(TaskPool &)            = delete;
         TaskPool(TaskPool &&)           = delete;
@@ -117,7 +128,7 @@ namespace mtft {
         std::condition_variable  condC;       //
         std::condition_variable  condQ;       //
         std::mutex               mtxC;        // mCurrent锁
-        std::mutex               mtxQ;
+        std::mutex               mtxQ;        // mTaskQueue锁
         std::atomic<bool>       *finish;
     };
 
