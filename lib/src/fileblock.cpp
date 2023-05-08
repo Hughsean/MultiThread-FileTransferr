@@ -11,7 +11,7 @@
 // #include "utility"
 
 namespace mtft {
-    namespace log = spdlog;
+    // namespace log = spdlog;
     // std::mutex    FileBlock::m_mutex{};
     // std::ofstream FileBlock::m_ofs;
 
@@ -87,7 +87,7 @@ namespace mtft {
         : mID(id), mPathWithFileName(fpath), mOffset(offset), mLength(length), mProgress(0) {
         mifs.open(fpath, std::ios::binary | std::ios::in);
         if (!mifs.good()) {
-            log::error("文件打开失败({})", fpath);
+            spdlog::error("文件打开失败({})", fpath);
             abort();
         }
         mifs.seekg(offset, std::ios::beg);
@@ -99,7 +99,7 @@ namespace mtft {
 
     uint32_t FileReader::read(void *data, uint32_t buffersize) {
         if (this->finished()) {
-            log::warn("尝试在已读完的块中继续读出内容");
+            spdlog::warn("尝试在已读完的块中继续读出内容");
             return 0;
         }
         uint32_t remain = mLength - mProgress;
@@ -117,14 +117,16 @@ namespace mtft {
     int FileReader::getID() {
         return mID;
     }
-    auto FileReader::ReadersBuilder(int n, uint32_t totalsize, const std::string &fpath) -> std::vector<ptr> {
+
+    auto FileReader::Builder(int n, uint32_t totalsize, const std::string &fpath) -> std::vector<ptr> {
         if (n <= 1) {
-            log::error("n<=1");
+            spdlog::error("n<=1");
             abort();
         }
         uint32_t         blocksize = totalsize / (n - 1);
         uint32_t         lastblock = totalsize - (n - 1) * blocksize;
         std::vector<ptr> vec;
+        vec.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileReader>(i, fpath, blocksize * i, blocksize));
         }
@@ -140,7 +142,7 @@ namespace mtft {
         std::string temp = std::format("{}\\{}", path, mFileName);
         mofs.open(temp, std::ios::binary);
         if (!mofs.good()) {
-            log::error("文件打开失败({})", temp);
+            spdlog::error("文件打开失败({})", temp);
             abort();
         }
     }
@@ -151,7 +153,7 @@ namespace mtft {
 
     uint32_t FileWriter::write(const void *data, uint32_t buffersize) {
         if (finished()) {
-            log::warn("尝试在已写完的块中继续写入内容");
+            spdlog::warn("尝试在已写完的块中继续写入内容");
             return 0;
         }
         uint32_t remain = mLength - mProgress - 1;
@@ -173,15 +175,16 @@ namespace mtft {
         return mProgress;
     }
 
-    auto FileWriter::fwsCreator(int n, uint32_t totalsize, const std::string &filename, const std::string &path)
+    auto FileWriter::Builder(int n, uint32_t totalsize, const std::string &filename, const std::string &path)
         -> std::vector<ptr> {
         if (n <= 1) {
-            log::error("n<=1");
+            spdlog::error("n<=1");
             abort();
         }
         std::vector<ptr> vec;
         uint32_t         blocksize = totalsize / (n - 1);
         uint32_t         lastblock = totalsize - (n - 1) * blocksize;
+        vec.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, i * blocksize, blocksize));
         }

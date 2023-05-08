@@ -1,4 +1,5 @@
 ﻿#define _WIN32_WINNT 0x0601
+#include "app.h"
 #include "asio.hpp"
 #include "fileblock.h"
 #include "fstream"
@@ -6,23 +7,15 @@
 #include "spdlog/spdlog.h"
 #include "string"
 #include "json/json.h"
+
 int main() {
     using namespace asio;
+    using namespace mtft;
     namespace log = spdlog;
-    error_code        ec;
-    io_context        ioc;
-    ip::tcp::endpoint edp(ip::address_v4::from_string("172.28.128.230"), 8080);
-    ip::udp::endpoint uedp(ip::address_v4::any(), 8080);
-    ip::udp::socket   usck(ioc, uedp);
-    ip::udp::endpoint remote;
-    char              buf[100];
-    auto              p = std::thread([&] {
-        while (true) {
-            usck.receive_from(buffer(buf), remote);
-            log::info("{}:{}", remote.address().to_string(), remote.port());
-        }
-    });
-    p.join();
+    App a("D:", THREAD_N);
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 }
 void fun() {
     using namespace asio;
@@ -71,7 +64,7 @@ void fun1() {
         try {
             sck.receive(buf.prepare(size));
             buf.commit(size);
-            ofs.write((char*)buf.data().data(), buf.data().size());
+            ofs.write((char*)buf.data().data(), (LONGLONG)buf.data().size());
             i++;
             if (i % 1000 == 0) {
                 std::cout << "接受1024000字节" << buf.data().size() << std::endl;

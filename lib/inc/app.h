@@ -1,6 +1,11 @@
-﻿//
-// Created by xSeung on 2023/4/21.
-//
+﻿/**
+ * @brief 应用模块
+ *
+ * @version 0.1
+ * @author 鳯玖 (xSeung@163.com)
+ * @date 2023-04-21
+ * @copyright Copyright (c) 2023
+ */
 
 #ifndef MTFT_APP_H
 #define MTFT_APP_H
@@ -13,19 +18,25 @@ namespace mtft {
     using namespace asio;
     class App {
     public:
-        App(std::string rIP);
-        void send(std::string fPath);
+        App(const std::string& mpath, int poolsize);
+        ~App();
+        void send(const std::string& fPath, const ip::address_v4& ip);
         void receive();
+        // 端口监听
         void scan();
-        void connect();
+        void udplisten();
+        void tcplisten();
+        void interpreter(const std::string& cmd);
 
     private:
-        void                        listen();
-        void                        respond();
+        void                        respond(const ip::udp::endpoint& edp);
         void                        addEdp(const ip::tcp::endpoint& edp);
         std::vector<ip::address_v4> edpvec;  // 存储当前局域网扫描到的进程ip
-        std::string                 path;    // 接收文件块存储位置
+        std::string                 mpath;   // 接收文件块存储位置
         bool                        mstop;
+        TaskPool                    mpool;
+        std::thread                 mudplisten;
+        std::thread                 mtcplisten;
     };
 }  // namespace mtft
 
