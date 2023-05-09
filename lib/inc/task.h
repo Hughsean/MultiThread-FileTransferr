@@ -32,7 +32,7 @@ namespace mtft {
     /// @param buf 缓存
     /// @param json Json::Value
     /// @return 操作是否成功
-    bool ReadJsonFromBuf(streambuf &buf, Json::Value &json);
+    void ReadJsonFromBuf(streambuf &buf, Json::Value &json);
     /// @brief json ==> buf; json.clear()
     /// @param buf 缓存
     /// @param json Json::Value
@@ -90,17 +90,16 @@ namespace mtft {
     class Task {
     public:
         using ptr = std::shared_ptr<Task>;
+        Task();
         Task(const std::vector<FileWriter::ptr> &vec, const std::string &fname);
         Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec, const std::string &fname);
-        // XXX:test
-        // Task(const std::vector<Work::ptr> &vec);
         Task(Task &)  = delete;
         Task(Task &&) = delete;
         void                              stop();
-        uint32_t                          getN();
-        Work::ptr                         getWork(int i);
+        bool                              empty();
+        Work::ptr                         getWork();
         std::vector<std::tuple<int, int>> getPorts();
-        std::vector<FileWriter::ptr>      getVec();
+        std::vector<std::string>      getVec();
         std::string                       getName();
         TaskType                          getType();
 
@@ -113,7 +112,7 @@ namespace mtft {
     /// @brief 作业池
     class TaskPool {
     public:
-        explicit TaskPool(int n);
+        explicit TaskPool();
         ~TaskPool();
         void submit(const Task::ptr &task);
         TaskPool(TaskPool &)            = delete;
@@ -122,18 +121,15 @@ namespace mtft {
         TaskPool operator=(TaskPool &&) = delete;
 
     private:
-        bool                     allFinish();
-        void                     Reset();
-        const int                num;         // 线程个数
         volatile bool            mstop;       //
         std::queue<Task::ptr>    mTaskQueue;  // 任务队列
         std::vector<std::thread> mThreads;    // 工作线程
         Task::ptr                mCurrent;    // 当前任务
-        std::condition_variable  condC;       //
-        std::condition_variable  condQ;       //
+        std::condition_variable  condw;       //
+        std::condition_variable  conds;       //
         std::mutex               mtxC;        // mCurrent锁
         std::mutex               mtxQ;        // mTaskQueue锁
-        std::atomic<bool>       *finish;
+        std::atomic_int          finish;
     };
 
 }  // namespace mtft

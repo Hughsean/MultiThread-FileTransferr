@@ -15,6 +15,8 @@ extern const int         THREAD_N;
 extern const int         JSONSIZE;
 extern const int         UDPPORT;
 extern const int         TCPPORT;
+extern const int         TIMEOUT;
+extern const int         RECONNECTTIME;
 extern const std::string DIR;
 extern const std::string PROGRESS;
 extern const std::string TYPE;
@@ -26,6 +28,6 @@ extern const std::string FILESIZE;
 extern const std::string ID;
 extern const std::string PORT;
 extern const std::string OK;
-// extern const std::string BROADCAST;
+extern const std::string HOSTNAME;
 
 #endif  // CN_CD_CONFIG_H
