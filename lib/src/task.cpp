@@ -280,6 +280,7 @@ namespace mtft {
             mCurrent->stop();
         }
         condC.notify_all();
+        condQ.notify_all();
         delete finish;
         for (auto&& e : mThreads) {
             e.join();

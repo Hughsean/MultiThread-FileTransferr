@@ -58,10 +58,10 @@ namespace mtft {
         vec.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileReader>(i, fpath, blocksize * i, blocksize));
-            spdlog::info("id:{:2},offset:{:10},blocksize:{:10}", i, i * blocksize, blocksize);
+            spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", i, i * blocksize, blocksize);
         }
         vec.emplace_back(std::make_shared<FileReader>(n - 1, fpath, n * blocksize, lastblock));
-        spdlog::info("id:{:2},offset:{:10},blocksize:{:10}", n - 1, n * blocksize, lastblock);
+        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, n * blocksize, lastblock);
         return vec;
     }
     FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, uint32_t offset,
@@ -122,18 +122,18 @@ namespace mtft {
         vec.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, i * blocksize, blocksize));
-            spdlog::info("id:{:2},offset:{:10},blocksize:{:10}", i, i * blocksize, blocksize);
+            spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", i, i * blocksize, blocksize);
         }
         vec.emplace_back(std::make_shared<FileWriter>(n - 1, filename, path, n * blocksize, lastblock));
-        spdlog::info("id:{:2},offset:{:10},blocksize:{:10}", n - 1, n * blocksize, lastblock);
+        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, n * blocksize, lastblock);
         return vec;
     }
     void FileWriter::merge(const std::string &fname, const std::vector<ptr> &vec) {
-        auto str = std::format("{}\\{}", DIR, fname);
-        spdlog::info("创建文件: {}", str);
-        std::ofstream ofs(str, std::ios::binary);
+        // auto str = std::format("{}",  fname);
+        spdlog::info("创建文件: {}", fname);
+        std::ofstream ofs(fname, std::ios::binary);
         if (!ofs.good()) {
-            spdlog::warn("{} 合并失败: 无法创建文件", str);
+            spdlog::warn("无法创建文件: {}", fname);
             return;
         }
         for (auto &&e : vec) {
@@ -142,7 +142,7 @@ namespace mtft {
             if (!_.good()) {
                 spdlog::warn("打开文件 {} 失败", temp);
                 ofs.close();
-                std::filesystem::remove(str);
+                std::filesystem::remove(fname);
                 return;
             }
             spdlog::info("合并文件块: {}", temp);
@@ -150,6 +150,7 @@ namespace mtft {
             _.close();
         }
         ofs.close();
+        spdlog::info("{} 合并完成", fname);
     }
     void FileWriter::close() {
         mofs.close();

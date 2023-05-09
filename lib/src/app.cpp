@@ -12,7 +12,6 @@ namespace mtft {
 
     App::App() : mpool(THREAD_N) {
         mstop = false;
-        // mpath = DIR;
         // mudplisten = std::thread([this] { udplisten(); });
         // mtcplisten = std::thread([this] { tcplisten(); });
         edpvec.reserve(10);
@@ -44,6 +43,7 @@ namespace mtft {
         Json::Value       json;
         streambuf         buf;
         try {
+            // 连接到对端TCP监听线程
             sck.connect(edp);
             // 获取文件信息[name, size]
             int64_t totalsize = infs.seekg(0, std::ios::end).tellg();
@@ -67,10 +67,10 @@ namespace mtft {
                 auto port = (*iter)[PORT].asInt();
                 vec.emplace_back(ip::tcp::endpoint(ip, port), rvec.at(id));
             }
-            json = Json::Value();
-            //
+            json      = Json::Value();
             auto task = std::make_shared<Task>(vec, name);
-            json[OK]  = OK;
+            //
+            json[OK] = OK;
             WriteJsonToBuf(buf, json);
             write(sck, buf);
             mpool.submit(task);
@@ -137,7 +137,6 @@ namespace mtft {
                     break;
                 }
                 // 接收文件信息, 配置相应的数据结构
-                // auto size = read(sck, buf.prepare(JSONSIZE));
                 auto size = sck.receive(buf.prepare(JSONSIZE));
                 buf.commit(size);
                 ReadJsonFromBuf(buf, json);
@@ -146,6 +145,7 @@ namespace mtft {
                 spdlog::info("name:{} size:{}", name, totalsize);
                 auto wvec = FileWriter::Builder(THREAD_N, totalsize, name, DIR);
                 auto task = std::make_shared<Task>(wvec, name);
+                mpool.submit(task);
                 // 将FileWriter id对应的端口发送给对方
                 auto id_port = task->getPorts();
                 json         = Json::Value();
@@ -156,8 +156,8 @@ namespace mtft {
                 }
                 WriteJsonToBuf(buf, json);
                 write(sck, buf);
+                //
                 sck.receive(buf.prepare(JSONSIZE));
-                mpool.submit(task);
             }
             catch (const error_code& ec) {
                 spdlog::warn(ec.message());
@@ -168,6 +168,5 @@ namespace mtft {
         if (cmd == "scan") {
             scan();
         }
-        // else if () {}
     }
 }  // namespace mtft

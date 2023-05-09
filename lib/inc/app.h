@@ -32,7 +32,6 @@ namespace mtft {
         void                        respond(const ip::udp::endpoint& edp);
         void                        addEdp(const ip::tcp::endpoint& edp);
         std::vector<ip::address_v4> edpvec;  // 存储当前局域网扫描到的进程ip
-        // std::string                 mpath;   // 接收文件块存储位置
         bool                        mstop;
         TaskPool                    mpool;
         std::thread                 mudplisten;
