@@ -19,7 +19,9 @@ note over s:接受Client.Socket
 	loop Server每一个线程实体
 		c-->>s:传送字节流
 	end
-s->>c:接收无误
+s->>c:接收完毕
+note over c:释放资源
+note over s:释放资源
 ```
 
 ### 开发手册
