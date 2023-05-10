@@ -14,7 +14,6 @@ namespace mtft {
         mstop = false;
         // mudplisten = std::thread([this] { udplisten(); });
         mtcplisten = std::thread([this] { tcplisten(); });
-        edpvec.reserve(10);
         // std::filesystem::create_directories(DIR);
         // spdlog::info("工作目录: {}", DIR);
     }
@@ -108,7 +107,6 @@ namespace mtft {
                 buf.consume(sck.send_to(buf.data(), ip::udp::endpoint(remote.address(), UDPPORT)));
             }
             else if (str == RESPONSE) {
-                edpvec.emplace_back(remote.address().to_v4());
                 spdlog::info("扫描到{}", remote.address().to_string());
             }
         }

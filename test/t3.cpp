@@ -9,25 +9,38 @@
 #include "json/json.h"
 
 int main(int argc, char const* argv[]) {
-    using namespace mtft;
-    io_context ioc;
-    error_code ec;
-    auto       p  = std::make_shared<ip::tcp::acceptor>(ioc, ip::tcp::endpoint(ip::tcp::v4(), 8080));
-    auto       pp = std::async(std::launch::async, [&]() {
+    using namespace asio;
+    io_context              ioc;
+    auto                    acp = std::make_shared<ip::tcp::acceptor>(ioc, ip::tcp::endpoint(ip::tcp::v4(), 8080));
+    std::mutex              m;
+    std::condition_variable cv;
+    bool                    b    = false;
+    bool                    stop = true;
+    acp->cancel();
+    std::thread t([&] {
+        { std::unique_lock<std::mutex> _(m); }
         try {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            // b = true;
+            spdlog::info("format_string_t<Args...> fmt");
+            acp->accept();
+            b = true;
         }
         catch (std::exception& e) {
-            spdlog::warn("{}", e.what());
+            spdlog::error(e.what());
+            return;
         }
+        cv.notify_one();
     });
-
-    switch (pp.wait_for(std::chrono::seconds(2))) {
-    case std::future_status::timeout:
-        spdlog::info("超时");
-        p->cancel();
-        break;
-    default:
-        break;
+    {
+        std::unique_lock<std::mutex> _(m);
+        auto                         p = cv.wait_for(_, std::chrono::milliseconds(2000), [&] { return !b; });
+        spdlog::info(p);
     }
+    if (true) {
+        spdlog::info("const T &msg");
+        cv.notify_one();
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        acp->cancel();
+    }
+    t.join();
 }

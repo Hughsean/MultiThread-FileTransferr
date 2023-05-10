@@ -33,11 +33,18 @@ namespace mtft {
         mstop = false;
         mid   = i;
     }
+    Work::~Work() {
+        stop();
+    }
     int Work::getID() {
         return mid;
     }
     void Work::stop() {
+        // {
+        // std::unique_lock<std::mutex> _(mtx);
         mstop = true;
+        // }
+        // mcond.notify_all();
     }
 
     UpWork::UpWork(const ip::tcp::endpoint& remote, const FileReader::ptr& reader) : Work(reader->getID()) {
@@ -46,9 +53,12 @@ namespace mtft {
     }
 
     bool UpWork::uploadFunc(const socket_ptr& sck) {
+        std::atomic_bool        exit{ false };
+        std::thread             t;
+        std::mutex              mtx;
+        std::condition_variable cond;
         try {
             streambuf   buf;
-            error_code  ec;
             uint32_t    size;
             uint32_t    progress;
             Json::Value json;
@@ -61,37 +71,32 @@ namespace mtft {
             mReader->seek(progress);
             spdlog::info("upwork({:2}): 调整进度到{}", mid, progress);
             // 发送文件
-            while ((!mReader->finished() || buf.data().size() != 0) && !mstop) {
-                size = mReader->read((buf.prepare(BUFFSIZE).data()), BUFFSIZE);
-                buf.commit(size);
-                auto future = std::async(std::launch::async, [&]() {
-                    try {
-                        size = write(*sck, buf);
+            t = std::thread([&, this] {
+                while (!exit) {
+                    std::unique_lock<std::mutex> _(mtx);
+                    if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
+                        spdlog::warn("upwork({:2}): 超时", mid);
+                        sck->cancel();
                     }
-                    catch (std::exception& e) {
-                        spdlog::warn("upwork({:2}): {} {}", mid, e.what(), __LINE__);
-                        return false;
-                    }
-                    return true;
-                });
-                switch (future.wait_for(std::chrono::milliseconds(TIMEOUT))) {
-                case std::future_status::timeout:
-                    spdlog::info("upwork({:2}): 发送超时", mid);
-                    sck->cancel();
-                    return false;
-                    break;
-                default:
-                    if (!future.get()) {
-                        return false;
-                    }
-                    break;
                 }
+            });
+            while ((!mReader->finished() || buf.data().size() != 0) && !mstop) {
+                size = mReader->read(buf.prepare(BUFFSIZE).data(), BUFFSIZE);
+                buf.commit(size);
+                write(*sck, buf);
+                cond.notify_one();
             }
         }
         catch (const std::exception& e) {
             spdlog::warn("upwork({:2}): {}", mid, e.what());
+            exit = true;
+            cond.notify_one();
+            t.join();
             return false;
         }
+        exit = true;
+        cond.notify_one();
+        t.join();
         return true;
     }
 
@@ -123,6 +128,10 @@ namespace mtft {
     }
 
     bool DownWork::downloadFunc(const socket_ptr& sck) {
+        std::atomic_bool        exit{ false };
+        std::thread             t;
+        std::mutex              mtx;
+        std::condition_variable cond;
         try {
             streambuf   buf;
             Json::Value json;
@@ -132,41 +141,33 @@ namespace mtft {
             // json配置写入缓存, 并发送
             WriteJsonToBuf(buf, json);
             write(*sck, buf);
-            while (!mFwriter->finished() && !mstop) {
-                // C++ 异步执行
-                auto future = std::async(std::launch::async, [&]() {
-                    try {
-                        size = sck->receive(buf.prepare(BUFFSIZE));
-                    }
-                    catch (std::exception& e) {
-                        spdlog::warn("downwork({:2}): {}", mid, e.what());
-                        return false;
-                    }
-                    return true;
-                });
-                switch (future.wait_for(std::chrono::milliseconds(TIMEOUT))) {
-                case std::future_status::timeout:
-                    spdlog::info("downwork({:2}): 接收超时", mid);
-                    sck->cancel();
-                    return false;
-                    break;
-                case std::future_status::ready:
-                    if (!future.get()) {
-                        return false;
-                    }
-                    buf.commit(size);
-                    size = mFwriter->write(buf.data().data(), size);
-                    buf.consume(size);
-                    break;
-                default:
-                    break;
+            t = std::thread([&, this] {
+                while (!exit) {
+                    std::unique_lock<std::mutex> _(mtx);
+                    if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
+                        spdlog::warn("downwork({:2}): 超时", mid);
+                        sck->cancel();
+                    };
                 }
+            });
+            while (!mFwriter->finished() && !mstop) {
+                size = sck->receive(buf.prepare(BUFFSIZE));
+                buf.commit(size);
+                size = mFwriter->write(buf.data().data(), size);
+                buf.consume(size);
+                cond.notify_one();
             }
         }
         catch (const std::exception& e) {
             spdlog::warn("downwork({:2}): {}", mid, e.what());
+            exit = true;
+            cond.notify_one();
+            t.join();
             return false;
         }
+        exit = true;
+        cond.notify_one();
+        t.join();
         return true;
     }
 
@@ -270,6 +271,7 @@ namespace mtft {
     TaskType Task::getType() {
         return type;
     }
+
     TaskPool::TaskPool() {
         mstop    = false;
         mCurrent = std::make_shared<Task>();
@@ -277,6 +279,7 @@ namespace mtft {
             // 工作线程
             mThreads.emplace_back([this, i] {
                 while (true) {
+                    // try {
                     Work::ptr work;
                     // 访问mCurrent临界资源
                     {
@@ -300,6 +303,10 @@ namespace mtft {
                             break;
                         }
                     }
+                    // }
+                    // catch (std::exception& e) {
+                    //     spdlog::error(e.what());
+                    // }
                 }
                 spdlog::info("工作线程thread({:2})退出", i);
             });
@@ -386,4 +393,37 @@ namespace mtft {
         spdlog::info("任务已提交");
     }
 
+    // ThreadPool::ThreadPool() {
+    //     for (int i = 0; i < THREAD_N; i++) {
+    //         threads.emplace_back([this] {
+    //             while (true) {
+    //                 std::function<void()> task;
+    //                 {
+    //                     std::unique_lock<std::mutex> _(mtx);
+    //                     cond.wait(_, [this] { return mstop || !tasks.empty(); });
+    //                     if (mstop) {
+    //                         break;
+    //                     }
+    //                     task = std::move(tasks.front());
+    //                     tasks.pop();
+    //                 }
+    //                 task();
+    //             }
+    //         });
+    //     }
+    // }
+
+    // ThreadPool::~ThreadPool() {
+    //     stop();
+    // }
+    // void ThreadPool::stop() {
+    //     {
+    //         std::unique_lock<std::mutex> _(mtx);
+    //         mstop = true;
+    //     }
+    //     cond.notify_all();
+    //     for (auto&& e : threads) {
+    //         e.join();
+    //     }
+    // }
 }  // namespace mtft

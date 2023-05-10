@@ -21,20 +21,18 @@ namespace mtft {
         App();
         ~App();
         void send(const std::string& fPath, const ip::address_v4& ip);
-        // 端口监听
         void scan();
-        void udplisten();
-        void tcplisten();
         void interpreter(const std::string& cmd);
 
     private:
-        void                        respond(const ip::udp::endpoint& edp);
-        void                        addEdp(const ip::tcp::endpoint& edp);
-        std::vector<ip::address_v4> edpvec;  // 存储当前局域网扫描到的进程ip
-        bool                        mstop;
-        TaskPool                    mpool;
-        std::thread                 mudplisten;
-        std::thread                 mtcplisten;
+        // 端口监听
+        void        udplisten();
+        void        tcplisten();
+        void        respond(const ip::udp::endpoint& edp);
+        bool        mstop;
+        TaskPool    mpool;
+        std::thread mudplisten;
+        std::thread mtcplisten;
     };
 }  // namespace mtft
 
