@@ -120,27 +120,28 @@ namespace mtft {
         spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, n * blocksize, lastblock);
         return vec;
     }
-    void FileWriter::merge(const std::string &fname, const std::vector<std::string> &vec) {
+    bool FileWriter::merge(const std::string &fname, const std::vector<std::string> &vec) {
         spdlog::info("创建文件: {}", fname);
         std::ofstream ofs(fname, std::ios::binary);
         if (!ofs.good()) {
-            spdlog::warn("无法创建文件: {}", fname);
-            return;
+            spdlog::error("无法创建文件: {}", fname);
+            return false;
         }
         for (auto &&e : vec) {
-            auto          temp = std::format("{}\\{}", DIR, e);
+            auto          temp = std::format("{}{}\\{}", fname, DIR, e);
             std::ifstream _(temp, std::ios::binary);
             if (!_.good()) {
                 spdlog::warn("打开文件 {} 失败", temp);
                 ofs.close();
                 std::filesystem::remove(fname);
-                return;
+                return false;
             }
             spdlog::info("合并文件块: {}", temp);
             ofs << _.rdbuf();
             _.close();
         }
         ofs.close();
+        return true;
     }
     void FileWriter::close() {
         mofs.close();

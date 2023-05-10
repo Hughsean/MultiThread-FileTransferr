@@ -3,6 +3,7 @@
 //
 #include "task.h"
 #include "config.h"
+#include "filesystem"
 #include "mutex"
 #include "spdlog/spdlog.h"
 
@@ -66,12 +67,12 @@ namespace mtft {
                 auto future = std::async(std::launch::async, [&]() {
                     try {
                         size = write(*sck, buf);
-                        return true;
                     }
                     catch (std::exception& e) {
                         spdlog::warn("upwork({:2}): {} {}", mid, e.what(), __LINE__);
                         return false;
                     }
+                    return true;
                 });
                 switch (future.wait_for(std::chrono::milliseconds(TIMEOUT))) {
                 case std::future_status::timeout:
@@ -139,7 +140,9 @@ namespace mtft {
                     }
                     catch (std::exception& e) {
                         spdlog::warn("downwork({:2}): {}", mid, e.what());
+                        return false;
                     }
+                    return true;
                 });
                 switch (future.wait_for(std::chrono::milliseconds(TIMEOUT))) {
                 case std::future_status::timeout:
@@ -148,6 +151,9 @@ namespace mtft {
                     return false;
                     break;
                 case std::future_status::ready:
+                    if (!future.get()) {
+                        return false;
+                    }
                     buf.commit(size);
                     size = mFwriter->write(buf.data().data(), size);
                     buf.consume(size);
@@ -304,6 +310,7 @@ namespace mtft {
                 // 为合并文件准备
                 std::vector<std::string> blockvec;
                 TaskType                 type;
+                std::string              filename;
                 // 访问mCurrent临界资源
                 {
                     {
@@ -323,11 +330,12 @@ namespace mtft {
                             mTaskQueue.pop();
                             type = mCurrent->getType();
                             if (type == TaskType::Down) {
+                                filename = mCurrent->getName();
                                 blockvec = mCurrent->getVec();
                             }
                         }
-                        spdlog::info("调度线程thread({:2}): 完成一次调度", THREAD_N);
                     }
+                    spdlog::info("调度线程thread({:2}): 完成一次调度", THREAD_N);
                     condw.notify_all();
                     {
                         std::unique_lock<std::mutex> _(mtxC);
@@ -337,9 +345,12 @@ namespace mtft {
                         }
                         if (type == TaskType::Down) {
                             spdlog::info("接收完成");
-                            spdlog::info("开始合并: {}", mCurrent->getName());
-                            FileWriter::merge(mCurrent->getName(), blockvec);
-                            spdlog::info("合并完成");
+                            spdlog::info("开始合并: {}", filename);
+                            if (FileWriter::merge(filename, blockvec)) {
+                                spdlog::info("合并完成");
+                            };
+                            std::filesystem::remove_all(std::format("{}{}", filename, DIR));
+                            spdlog::info("清理目录: {}{}", filename, DIR);
                         }
                         else {
                             spdlog::info("发送完成");

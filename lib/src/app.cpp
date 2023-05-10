@@ -13,23 +13,23 @@ namespace mtft {
     App::App() {
         mstop = false;
         // mudplisten = std::thread([this] { udplisten(); });
-        // mtcplisten = std::thread([this] { tcplisten(); });
+        mtcplisten = std::thread([this] { tcplisten(); });
         edpvec.reserve(10);
-        std::filesystem::create_directories(DIR);
-        spdlog::info("工作目录: {}", DIR);
+        // std::filesystem::create_directories(DIR);
+        // spdlog::info("工作目录: {}", DIR);
     }
     App::~App() {
         mstop = true;
-        // io_context ioc;
+        io_context ioc;
         // ip::udp::socket usck(ioc, ip::udp::endpoint(ip::udp::v4(), 0));
-        // ip::tcp::socket tsck(ioc, ip::tcp::endpoint(ip::tcp::v4(), 0));
+        ip::tcp::socket tsck(ioc, ip::tcp::endpoint(ip::tcp::v4(), 0));
         // usck.send_to(buffer(""), ip::udp::endpoint(ip::address_v4::loopback(), UDPPORT));
-        // tsck.connect(ip::tcp::endpoint(ip::address_v4::loopback(), TCPPORT));
+        tsck.connect(ip::tcp::endpoint(ip::address_v4::loopback(), TCPPORT));
         // usck.close();
         // mudplisten.join();
-        // mtcplisten.join();
-        spdlog::info("清理工作目录: {}", DIR);
-        std::filesystem::remove_all(DIR);
+        mtcplisten.join();
+        // spdlog::info("清理工作目录: {}", DIR);
+        // std::filesystem::remove_all(DIR);
     }
 
     void App::send(const std::string& fPath, const ip::address_v4& ip) {
@@ -75,8 +75,6 @@ namespace mtft {
             spdlog::warn("send {} to {}: {}", fPath, ip.to_string(), e.what());
         }
     }
-
-    void App::receive() {}
 
     void App::scan() {
         io_context        ioc;
@@ -134,7 +132,10 @@ namespace mtft {
                 auto totalsize = json[FILESIZE].asUInt64();
                 auto name      = json[FILENAME].asString();
                 spdlog::info("name:{} size:{}", name, totalsize);
-                auto wvec = FileWriter::Builder(THREAD_N, totalsize, name, DIR);
+                std::string dir = std::format("{}{}", name, DIR);
+                spdlog::info("创建工作目录: ", dir);
+                std::filesystem::create_directory(dir);
+                auto wvec = FileWriter::Builder(THREAD_N, totalsize, name, dir);
                 auto task = std::make_shared<Task>(wvec, name);
                 mpool.submit(task);
                 // 将FileWriter id对应的端口发送给对方

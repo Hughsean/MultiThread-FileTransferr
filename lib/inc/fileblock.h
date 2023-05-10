@@ -55,7 +55,7 @@ namespace mtft {
         uint64_t                getProgress();
         static std::vector<ptr> Builder(int n, uint64_t totalsize, const std::string& filename,
                                         const std::string& path);
-        static void             merge(const std::string& fname, const std::vector<std::string>& vec);
+        static bool             merge(const std::string& fname, const std::vector<std::string>& vec);
         void                    close();
 
     private:

@@ -21,7 +21,6 @@ namespace mtft {
         App();
         ~App();
         void send(const std::string& fPath, const ip::address_v4& ip);
-        void receive();
         // 端口监听
         void scan();
         void udplisten();
