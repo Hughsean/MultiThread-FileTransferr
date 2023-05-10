@@ -17,6 +17,7 @@ extern const int         UDPPORT;
 extern const int         TCPPORT;
 extern const int         TIMEOUT;
 extern const int         RECONNECTTIME;
+extern const uint32_t    BACK;
 extern const std::string DIR;
 extern const std::string PROGRESS;
 extern const std::string TYPE;

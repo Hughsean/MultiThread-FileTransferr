@@ -77,20 +77,20 @@ namespace mtft {
                     if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
                         spdlog::warn("upwork({:2}): 超时", mid);
                         sck->cancel();
+                        return;
                     }
                 }
             });
             while ((!mReader->finished() || buf.data().size() != 0) && !mstop) {
                 size = mReader->read(buf.prepare(BUFFSIZE).data(), BUFFSIZE);
                 buf.commit(size);
-                write(*sck, buf);
+                size = sck->send(buf.data());
                 cond.notify_one();
+                buf.consume(size);
             }
         }
         catch (const std::exception& e) {
             spdlog::warn("upwork({:2}): {}", mid, e.what());
-            exit = true;
-            cond.notify_one();
             t.join();
             return false;
         }
@@ -147,21 +147,20 @@ namespace mtft {
                     if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
                         spdlog::warn("downwork({:2}): 超时", mid);
                         sck->cancel();
+                        return;
                     };
                 }
             });
             while (!mFwriter->finished() && !mstop) {
                 size = sck->receive(buf.prepare(BUFFSIZE));
+                cond.notify_one();
                 buf.commit(size);
                 size = mFwriter->write(buf.data().data(), size);
                 buf.consume(size);
-                cond.notify_one();
             }
         }
         catch (const std::exception& e) {
-            spdlog::warn("downwork({:2}): {}", mid, e.what());
-            exit = true;
-            cond.notify_one();
+            spdlog::warn("downwork({:2}): {}", mid, e.what());  // mFwriter->seek(mFwriter->getProgress() - BACK);
             t.join();
             return false;
         }

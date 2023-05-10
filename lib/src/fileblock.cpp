@@ -90,6 +90,15 @@ namespace mtft {
         return size;
     }
 
+    void FileWriter::seek(uint64_t pos) {
+        if (pos > mProgress) {
+            return;
+        }
+        pos       = pos >= 0 ? pos : 0;
+        mProgress = pos;
+        mofs.seekp((uint32_t)pos, std::ios::beg);
+    }
+
     int FileWriter::getID() {
         return mid;
     }

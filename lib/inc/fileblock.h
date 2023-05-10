@@ -50,6 +50,7 @@ namespace mtft {
         FileWriter(int id, const std::string& filename, const std::string& path, uint64_t offset, uint64_t length);
         bool                    finished();
         uint64_t                write(const void* data, uint64_t buffersize);
+        void                    seek(uint64_t pos);
         int                     getID();
         const std::string&      getFname();
         uint64_t                getProgress();
