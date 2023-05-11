@@ -62,9 +62,9 @@ namespace mtft {
             ReadJsonFromBuf(buf, json);
             std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> vec;
             vec.reserve(json.size());
-            for (auto iter = json.begin(); iter != json.end(); iter++) {
-                auto id   = (*iter)[ID].asInt();
-                auto port = (*iter)[PORT].asInt();
+            for (auto&& iter : json) {
+                auto id   = iter[ID].asInt();
+                auto port = iter[PORT].asInt();
                 vec.emplace_back(ip::tcp::endpoint(ip, port), rvec.at(id));
             }
             auto task = std::make_shared<Task>(vec, name);

@@ -372,9 +372,7 @@ namespace mtft {
     }
     TaskPool::~TaskPool() {
         mstop = true;
-        if (mCurrent != nullptr) {
-            mCurrent->stop();
-        }
+        mCurrent->stop();
         condw.notify_all();
         conds.notify_one();
         for (auto&& e : mThreads) {
@@ -391,38 +389,4 @@ namespace mtft {
         conds.notify_one();
         spdlog::info("任务已提交");
     }
-
-    // ThreadPool::ThreadPool() {
-    //     for (int i = 0; i < THREAD_N; i++) {
-    //         threads.emplace_back([this] {
-    //             while (true) {
-    //                 std::function<void()> task;
-    //                 {
-    //                     std::unique_lock<std::mutex> _(mtx);
-    //                     cond.wait(_, [this] { return mstop || !tasks.empty(); });
-    //                     if (mstop) {
-    //                         break;
-    //                     }
-    //                     task = std::move(tasks.front());
-    //                     tasks.pop();
-    //                 }
-    //                 task();
-    //             }
-    //         });
-    //     }
-    // }
-
-    // ThreadPool::~ThreadPool() {
-    //     stop();
-    // }
-    // void ThreadPool::stop() {
-    //     {
-    //         std::unique_lock<std::mutex> _(mtx);
-    //         mstop = true;
-    //     }
-    //     cond.notify_all();
-    //     for (auto&& e : threads) {
-    //         e.join();
-    //     }
-    // }
 }  // namespace mtft

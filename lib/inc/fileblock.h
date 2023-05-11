@@ -5,14 +5,13 @@
 #ifndef CN_CD_FILEBLOCK_H
 #define CN_CD_FILEBLOCK_H
 
-// #include "asio.hpp"
 #include "config.h"
 #include "fstream"
 #include "string"
 #include "vector"
 
 namespace mtft {
-    class FileReader {
+    class FileReader : Base {
     public:
         using ptr = std::shared_ptr<FileReader>;
         /// @brief          文件块读取构造函数
@@ -44,7 +43,7 @@ namespace mtft {
         uint64_t      mLength;
         uint64_t      mProgress;
     };
-    class FileWriter {
+    class FileWriter : Base {
     public:
         using ptr = std::shared_ptr<FileWriter>;
         FileWriter(int id, const std::string& filename, const std::string& path, uint64_t offset, uint64_t length);

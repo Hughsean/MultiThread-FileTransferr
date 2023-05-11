@@ -38,15 +38,6 @@ namespace mtft {
     /// @param json Json::Value
     uint32_t WriteJsonToBuf(streambuf &buf, Json::Value &json);
 
-    class Base {
-    public:
-        Base(Base &)             = delete;
-        Base(Base &&)            = delete;
-        Base &operator=(Base &)  = delete;
-        Base  operator=(Base &&) = delete;
-        Base()                   = default;
-    };
-
     class Work : Base {
     public:
         using ptr           = std::shared_ptr<Work>;
@@ -116,40 +107,8 @@ namespace mtft {
         std::string            fName;
     };
 
-    // /**
-    //  * @brief 异步池(纯进程池), 在作业池中, async性能消耗大
-    //  *
-    //  * @version 0.1
-    //  * @date 2023-05-10
-    //  * @copyright Copyright (c) 2023
-    //  */
-    // class ThreadPool : Base {
-    // public:
-    //     ThreadPool();
-    //     ~ThreadPool();
-    //     void stop();
-    //     template <typename F, typename... Args>
-    //     auto submit(F &&f, Args &&...args) -> std::future<decltype(f(args...))> {
-    //         std::function<decltype(f(args...))()> func = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
-    //         auto                  task_ptr     = std::make_shared<std::packaged_task<decltype(f(args...))()>>(func);
-    //         std::function<void()> warpper_func = [task_ptr] { (*task_ptr)(); };
-    //         {
-    //             std::unique_lock<std::mutex> _(mtx);
-    //             tasks.emplace(warpper_func);
-    //         }
-    //         cond.notify_one();
-    //         return task_ptr->get_future();
-    //     };
-
-    // private:
-    //     std::queue<std::function<void()>> tasks;
-    //     std::vector<std::thread>          threads;
-    //     std::condition_variable           cond;
-    //     std::mutex                        mtx;
-    //     bool                              mstop;
-    // };
     /**
-     * @brief
+     * @brief 作业池
      *
      * @version 0.1
      * @author 鳯玖 (xSeung@163.com)
