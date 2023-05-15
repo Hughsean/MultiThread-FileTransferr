@@ -152,6 +152,7 @@ namespace mtft {
                 spdlog::warn(e.what());
             }
         }
+        spdlog::info("tcp 停止监听");
     }
     void App::interpreter(const std::string& cmd) {
         if (cmd == "scan") {

@@ -19,7 +19,6 @@ namespace mtft {
     extern const int         TCPPORT;
     extern const int         TIMEOUT;
     extern const int         RECONNECTTIME;
-    extern const uint32_t    BACK;
     extern const std::string DIR;
     extern const std::string PROGRESS;
     extern const std::string TYPE;
@@ -32,6 +31,7 @@ namespace mtft {
     extern const std::string PORT;
     extern const std::string OK;
     extern const std::string HOSTNAME;
+    // extern const uint32_t    BACK;
 
     /**
      * @brief 禁止移动, 禁止复制

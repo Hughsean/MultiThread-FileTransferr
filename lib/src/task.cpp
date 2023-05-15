@@ -40,11 +40,7 @@ namespace mtft {
         return mid;
     }
     void Work::stop() {
-        // {
-        // std::unique_lock<std::mutex> _(mtx);
         mstop = true;
-        // }
-        // mcond.notify_all();
     }
 
     UpWork::UpWork(const ip::tcp::endpoint& remote, const FileReader::ptr& reader) : Work(reader->getID()) {
@@ -87,6 +83,7 @@ namespace mtft {
                 size = sck->send(buf.data());
                 cond.notify_one();
                 buf.consume(size);
+                // write(*sck, buf);
             }
         }
         catch (const std::exception& e) {
@@ -152,6 +149,8 @@ namespace mtft {
                 }
             });
             while (!mFwriter->finished() && !mstop) {
+                // size = read(*sck, buf, detail::transfer_exactly_t(BUFFSIZE));
+                // spdlog::info(buf.data().size());
                 size = sck->receive(buf.prepare(BUFFSIZE));
                 cond.notify_one();
                 buf.commit(size);
@@ -278,7 +277,6 @@ namespace mtft {
             // 工作线程
             mThreads.emplace_back([this, i] {
                 while (true) {
-                    // try {
                     Work::ptr work;
                     // 访问mCurrent临界资源
                     {
@@ -291,7 +289,12 @@ namespace mtft {
                         spdlog::info("工作线程thread({:2}): 开始工作", i);
                         work = mCurrent->getWork();
                     }
+                    // try {
                     work->Func();
+                    // }
+                    // catch (std::exception& e) {
+                    //     spdlog::error(e.what());
+                    // }
                     finish++;
                     // 通知调度线程
                     conds.notify_one();
@@ -302,10 +305,6 @@ namespace mtft {
                             break;
                         }
                     }
-                    // }
-                    // catch (std::exception& e) {
-                    //     spdlog::error(e.what());
-                    // }
                 }
                 spdlog::info("工作线程thread({:2})退出", i);
             });

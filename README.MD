@@ -4,14 +4,10 @@
 sequenceDiagram
 participant s as Server
 participant c as Client
-c->>s:访问控制端口
-c-->>s:访问数据端口
-
-c->>s:file[name, length](json)
-note over c:创建文件发送线程
-note over s:创建文件接收线程
-s->>c:ready to accpet
-note over c:创建多线程实体
+c->>s:访问控制端口<br>file[name, length](json)
+note over s:创建N个线程, 随机分配数据端口, 向任务池提交任务
+s->>c:文件块id对应port<br>array[id:port]
+note over c:根据id:port映射, 创建N线程, 访问服务端对应端口
 	loop Client每一个线程实体
 		c-->>s:Socket.Connect
 	end
@@ -20,9 +16,10 @@ note over s:接受Client.Socket
 		c-->>s:传送字节流
 	end
 s->>c:接收完毕
-note over c:释放资源
-note over s:释放资源
+note over s,c:释放资源
 ```
+
+
 
 ### 开发手册
 
@@ -57,8 +54,8 @@ error::connection_aborted(你的主机中的软件中止了一个已建立的连
 
 ```json
 {
-    "FILENAME":"string",
-    "FILESIZE":int
+    "FILENAME":"string, 文件名称",
+    "FILESIZE":"uint64, 文件大小"
 }
 ```
 
@@ -67,8 +64,8 @@ error::connection_aborted(你的主机中的软件中止了一个已建立的连
 ```json
 [
     {
-       "ID":int,
-       "PORT":int
+       "ID":"int, 文件块id",
+       "PORT":"int, 端口号"
     }
     ...
 ]
@@ -83,4 +80,3 @@ error::connection_aborted(你的主机中的软件中止了一个已建立的连
 > * ~~connect [ip]: 连接到ip~~
 > * `send [file] [ip]`: 发送文件`[file]`到`[ip]`
 > * `exit`: 程序退出
-
