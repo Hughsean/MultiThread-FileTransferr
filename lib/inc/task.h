@@ -48,10 +48,10 @@ namespace mtft {
         void stop();
 
     protected:
-        int              mid;
-        io_context       mioc;
-        std::atomic_bool mstop;
-        // std::condition_variable mcond;
+        int                     mid;
+        io_context              mioc;
+        std::atomic_bool        mstop;
+        std::condition_variable cstop;
         // std::mutex              mtx;
         // std::thread             mt;
     };

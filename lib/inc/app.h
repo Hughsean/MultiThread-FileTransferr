@@ -26,13 +26,15 @@ namespace mtft {
 
     private:
         // 端口监听
-        void        udplisten();
-        void        tcplisten();
-        void        respond(const ip::udp::endpoint& edp);
-        bool        mstop;
-        TaskPool    mpool;
-        std::thread mudplisten;
-        std::thread mtcplisten;
+        void                     udplisten();
+        void                     tcplisten();
+        void                     respond(const ip::udp::endpoint& edp);
+        bool                     mstop;
+        TaskPool                 mpool;
+        std::thread              mudplisten;
+        std::thread              mtcplisten;
+        std::vector<ip::address> mlocaladdr;
+        io_context               mioc;
     };
 }  // namespace mtft
 

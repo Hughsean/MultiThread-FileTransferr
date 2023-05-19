@@ -4,6 +4,7 @@
 #include "app.h"
 #include "config.h"
 #include "filesystem"
+#include "regex"
 #include "spdlog/spdlog.h"
 #include "task.h"
 #include "json/value.h"
@@ -11,24 +12,29 @@
 namespace mtft {
 
     App::App() {
-        mstop = false;
-        // mudplisten = std::thread([this] { udplisten(); });
+        asio::ip::tcp::resolver           resolver(mioc);
+        asio::ip::tcp::resolver::query    query(asio::ip::host_name(), "");
+        asio::ip::tcp::resolver::iterator it = resolver.resolve(query);
+        asio::ip::tcp::resolver::iterator end;
+        while (it != end) {
+            asio::ip::tcp::endpoint endpoint = *it;
+            mlocaladdr.emplace_back(endpoint.address());
+            spdlog::info("本地IP: {}", endpoint.address().to_string());
+            ++it;
+        }
+        mstop      = false;
+        mudplisten = std::thread([this] { udplisten(); });
         mtcplisten = std::thread([this] { tcplisten(); });
-        // std::filesystem::create_directories(DIR);
-        // spdlog::info("工作目录: {}", DIR);
     }
     App::~App() {
         mstop = true;
-        io_context ioc;
-        // ip::udp::socket usck(ioc, ip::udp::endpoint(ip::udp::v4(), 0));
-        ip::tcp::socket tsck(ioc, ip::tcp::endpoint(ip::tcp::v4(), 0));
-        // usck.send_to(buffer(""), ip::udp::endpoint(ip::address_v4::loopback(), UDPPORT));
+        ip::udp::socket usck(mioc, ip::udp::endpoint(ip::udp::v4(), 0));
+        ip::tcp::socket tsck(mioc, ip::tcp::endpoint(ip::tcp::v4(), 0));
+        usck.send_to(buffer(R"({"space": "holder"})"), ip::udp::endpoint(ip::address_v4::loopback(), UDPPORT));
+        usck.close();
         tsck.connect(ip::tcp::endpoint(ip::address_v4::loopback(), TCPPORT));
-        // usck.close();
-        // mudplisten.join();
+        mudplisten.join();
         mtcplisten.join();
-        // spdlog::info("清理工作目录: {}", DIR);
-        // std::filesystem::remove_all(DIR);
     }
 
     void App::send(const std::string& fPath, const ip::address_v4& ip) {
@@ -37,9 +43,8 @@ namespace mtft {
             spdlog::warn("文件({})读取失败", fPath);
             return;
         }
-        io_context        ioc;
         ip::tcp::endpoint edp(ip, TCPPORT);
-        ip::tcp::socket   sck(ioc);
+        ip::tcp::socket   sck(mioc);
         streambuf         buf;
         Json::Value       json;
         try {
@@ -76,11 +81,10 @@ namespace mtft {
     }
 
     void App::scan() {
-        io_context        ioc;
         streambuf         buf;
         Json::Value       json;
         ip::udp::endpoint remote(ip::address_v4::broadcast(), UDPPORT);
-        ip::udp::socket   sck(ioc, ip::udp::endpoint(ip::udp::v4(), 0));
+        ip::udp::socket   sck(mioc, ip::udp::endpoint(ip::udp::v4(), 0));
         sck.set_option(socket_base::broadcast(true));
         json[TYPE] = SCAN;
         WriteJsonToBuf(buf, json);
@@ -88,12 +92,11 @@ namespace mtft {
     }
 
     void App::udplisten() {
-        io_context        ioc;
         streambuf         buf;
         error_code        ec;
         ip::udp::endpoint remote;
         ip::udp::endpoint edp(ip::address_v4::any(), UDPPORT);
-        ip::udp::socket   sck(ioc, edp);
+        ip::udp::socket   sck(mioc, edp);
         while (!mstop) {
             Json::Value json;
             auto        size = sck.receive_from(buf.prepare(JSONSIZE), remote);
@@ -101,20 +104,31 @@ namespace mtft {
             ReadJsonFromBuf(buf, json);
             auto str = json[TYPE].asString();
             if (str == SCAN) {
+                bool islocal{ false };
+                auto remoteaddr = remote.address();
+                for (auto&& e : mlocaladdr) {
+                    if (e == remoteaddr) {
+                        islocal = true;
+                    }
+                }
+                if (islocal) {
+                    spdlog::info("忽略本机扫描请求");
+                    continue;
+                }
                 // 响应扫描请求
                 json[TYPE] = RESPONSE;
                 WriteJsonToBuf(buf, json);
                 buf.consume(sck.send_to(buf.data(), ip::udp::endpoint(remote.address(), UDPPORT)));
             }
             else if (str == RESPONSE) {
-                spdlog::info("扫描到{}", remote.address().to_string());
+                spdlog::info("扫描到IP: {}", remote.address().to_string());
             }
         }
+        spdlog::info("UDP停止监听");
     }
     void App::tcplisten() {
-        io_context        ioc;
         streambuf         buf;
-        ip::tcp::acceptor acp(ioc, ip::tcp::endpoint(ip::address_v4::any(), TCPPORT));
+        ip::tcp::acceptor acp(mioc, ip::tcp::endpoint(ip::address_v4::any(), TCPPORT));
         while (true) {
             try {
                 Json::Value json;
@@ -155,8 +169,9 @@ namespace mtft {
         spdlog::info("tcp 停止监听");
     }
     void App::interpreter(const std::string& cmd) {
-        if (cmd == "scan") {
-            scan();
-        }
+        const std::string op       = "send|help|scan";
+        const std::string ip       = R"(\b(?:\d{1,3}\.){3}\d{1,3}\b)";
+        const std::string filepath = R"(^(.*[\\/])?([^\\/]+)$)";
+        
     }
 }  // namespace mtft

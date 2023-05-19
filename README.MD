@@ -19,13 +19,6 @@ s->>c:接收完毕
 note over s,c:释放资源
 ```
 
-
-
-### 开发手册
-
-error::connection_reset(远程主机强迫关闭了一个现有的连接)
-error::connection_aborted(你的主机中的软件中止了一个已建立的连接)
-
 `DownWork`==>`UpWork`:
 
 ```json

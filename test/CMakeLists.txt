@@ -8,10 +8,16 @@ add_executable(T3 t3.cpp)
 
 find_package(asio CONFIG REQUIRED)
 find_package(jsoncpp CONFIG REQUIRED)
+find_package(CURL CONFIG REQUIRED)
+# find_package(Boost REQUIRED COMPONENTS system)
 # find_package(gflags CONFIG REQUIRED)
+# include_directories(${Boost_INCLUDE_DIRS})
 
 target_link_libraries(T1 PRIVATE lib::lib)
 target_link_libraries(T2 PRIVATE lib::lib)
 target_link_libraries(T3 PRIVATE lib::lib)
+target_link_libraries(T3 PRIVATE CURL::libcurl)
+# target_link_libraries(T3 PRIVATE ${Boost_LIBRARIES})
+
 # target_link_libraries(T4 PRIVATE lib::lib)
 # target_link_libraries(T5 PRIVATE lib::lib)

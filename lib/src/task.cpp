@@ -35,6 +35,7 @@ namespace mtft {
     }
     Work::~Work() {
         stop();
+        cstop.notify_one();
     }
     int Work::getID() {
         return mid;
@@ -83,7 +84,6 @@ namespace mtft {
                 size = sck->send(buf.data());
                 cond.notify_one();
                 buf.consume(size);
-                // write(*sck, buf);
             }
         }
         catch (const std::exception& e) {
@@ -98,9 +98,23 @@ namespace mtft {
     }
 
     void UpWork::Func() {
-        error_code ec;
+        error_code  ec;
+        std::thread t;
+        bool        ret{ false };
         while (!mstop) {
             auto sck = std::make_shared<ip::tcp::socket>(mioc);
+            t        = std::thread([&, this] {
+                std::unique_lock<std::mutex> _;
+                cstop.wait(_, [&, this] {
+                    if (mstop || ret) {
+                        if (!ret) {
+                            sck->cancel();
+                        }
+                        return true;
+                    }
+                    return false;
+                });
+            });
             sck->connect(mremote, ec);
             if (ec) {
                 spdlog::warn("upwork({:2})创建连接: {}", mid, ec.message());
@@ -114,6 +128,9 @@ namespace mtft {
                 break;
             }
         }
+        ret = true;
+        cstop.notify_one();
+        t.join();
         spdlog::info("upwork({:2}): 已完成数据发送", mid);
     }
 
@@ -149,8 +166,6 @@ namespace mtft {
                 }
             });
             while (!mFwriter->finished() && !mstop) {
-                // size = read(*sck, buf, detail::transfer_exactly_t(BUFFSIZE));
-                // spdlog::info(buf.data().size());
                 size = sck->receive(buf.prepare(BUFFSIZE));
                 cond.notify_one();
                 buf.commit(size);
@@ -159,7 +174,7 @@ namespace mtft {
             }
         }
         catch (const std::exception& e) {
-            spdlog::warn("downwork({:2}): {}", mid, e.what());  // mFwriter->seek(mFwriter->getProgress() - BACK);
+            spdlog::warn("downwork({:2}): {}", mid, e.what());
             t.join();
             return false;
         }
@@ -170,9 +185,23 @@ namespace mtft {
     }
 
     void DownWork::Func() {
-        error_code ec;
+        error_code  ec;
+        bool        ret{ false };
+        std::thread t;
         while (!mstop) {
             auto sck = std::make_shared<ip::tcp::socket>(macp->accept(ec));
+            t        = std::thread([&, this] {
+                std::unique_lock<std::mutex> _;
+                cstop.wait(_, [&, this] {
+                    if (mstop || ret) {
+                        if (mstop) {
+                            sck->cancel();
+                        }
+                        return true;
+                    }
+                    return false;
+                });
+            });
             if (ec) {
                 spdlog::warn("downwork({:2}): {}", mid, ec.message());
                 continue;
@@ -184,6 +213,9 @@ namespace mtft {
             };
         }
         mFwriter->close();
+        ret = true;
+        cstop.notify_one();
+        t.join();
         spdlog::info("downwork({:2}): 已完成数据接收", mid);
     }
 
@@ -289,12 +321,7 @@ namespace mtft {
                         spdlog::info("工作线程thread({:2}): 开始工作", i);
                         work = mCurrent->getWork();
                     }
-                    // try {
                     work->Func();
-                    // }
-                    // catch (std::exception& e) {
-                    //     spdlog::error(e.what());
-                    // }
                     finish++;
                     // 通知调度线程
                     conds.notify_one();
