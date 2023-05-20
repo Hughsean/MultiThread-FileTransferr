@@ -23,6 +23,7 @@ namespace mtft {
         void send(const std::string& fPath, const ip::address_v4& ip);
         void scan();
         void interpreter(const std::string& cmd);
+        void run();
 
     private:
         // 端口监听

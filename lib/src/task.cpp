@@ -104,7 +104,8 @@ namespace mtft {
         while (!mstop) {
             auto sck = std::make_shared<ip::tcp::socket>(mioc);
             t        = std::thread([&, this] {
-                std::unique_lock<std::mutex> _;
+                std::mutex                   m;
+                std::unique_lock<std::mutex> _(m);
                 cstop.wait(_, [&, this] {
                     if (mstop || ret) {
                         if (!ret) {
@@ -191,7 +192,8 @@ namespace mtft {
         while (!mstop) {
             auto sck = std::make_shared<ip::tcp::socket>(macp->accept(ec));
             t        = std::thread([&, this] {
-                std::unique_lock<std::mutex> _;
+                std::mutex                   m;
+                std::unique_lock<std::mutex> _(m);
                 cstop.wait(_, [&, this] {
                     if (mstop || ret) {
                         if (mstop) {
