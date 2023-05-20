@@ -4,6 +4,7 @@
 #include "app.h"
 #include "config.h"
 #include "filesystem"
+#include "iostream"
 #include "regex"
 #include "spdlog/spdlog.h"
 #include "task.h"
@@ -169,9 +170,33 @@ namespace mtft {
         spdlog::info("tcp 停止监听");
     }
     void App::interpreter(const std::string& cmd) {
-        const std::string op       = "send|help|scan";
-        const std::string ip       = R"(\b(?:\d{1,3}\.){3}\d{1,3}\b)";
-        const std::string filepath = R"(^(.*[\\/])?([^\\/]+)$)";
-        
+        const std::string _send{ R"(send\s+(\b(?:\d{1,3}\.){3}\d{1,3}\b)\s+\"?([^"]*[^\\^"])\"?\s*)" };
+        const std::string _scan{ R"(\s*scan\s*)" };
+        const std::string _exit{ R"(\s*exit\s*)" };
+        std::smatch       res;
+        if (std::regex_match(cmd, res, std::regex(_scan))) {
+            scan();
+        }
+        else if (std::regex_match(cmd, res, std::regex(_send))) {
+            std::string ip       = res[1];
+            std::string filepath = res[2];
+            send(filepath, ip::address_v4::from_string(ip));
+        }
+        else if (std::regex_match(cmd, res, std::regex(_exit))) {
+            mstop = true;
+        }
+        else {
+            spdlog::info("send ip filepath: 发送文件");
+            spdlog::info("scan            : 扫描局域网对等主机");
+            spdlog::info("exit            : 退出程序");
+        }
+    }
+
+    void App::run() {
+        std::string cmd;
+        while (!mstop) {
+            std::getline(std::cin, cmd);
+            interpreter(cmd);
+        }
     }
 }  // namespace mtft

@@ -8,20 +8,13 @@
 #include "fileblock.h"
 #include "format"
 #include "iostream"
-#include "spdlog/spdlog.h"
-
+// #include "spdlog/spdlog.h"
+// #include "spdlog/sinks/basic_file_sink.h"
 int main() {
     using namespace asio;
     using namespace mtft;
-    try {
-        App a;
-        // a.send(R"(c:\Users\xSeung\Desktop\MTD.TEST\A.mp4)", ip::address_v4::from_string("172.21.42.16"));
-        a.scan();
-        // a.send(R"(c:\Users\xSeung\Desktop\MTD.TEST\B.mp4)", ip::address_v4::from_string("172.19.43.33"));
-        // a.send(R"(c:\Users\xSeung\Desktop\MTD.TEST\D.txt)", ip::address_v4::from_string("172.19.43.33"));
-        std::cin.get();
-    }
-    catch (std::exception& e) {
-        spdlog::error(e.what());
-    }
+    // auto file_logger = spdlog::basic_logger_mt("file_logger", "logs.txt");
+    // 设置全局默认日志记录器为文件日志记录器
+    // spdlog::set_default_logger(file_logger);
+    App().run();
 }
