@@ -68,7 +68,7 @@ note over s,c:释放资源
 
 `App CMD`:
 
-> * `help`: 获取帮助
+> * ~~`help`: 获取帮助~~
 > * `scan`: 扫描局域网, 获得局域网内设备`ip`
 > * ~~connect [ip]: 连接到ip~~
 > * `send [file] [ip]`: 发送文件`[file]`到`[ip]`
