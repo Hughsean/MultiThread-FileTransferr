@@ -170,7 +170,7 @@ namespace mtft {
         spdlog::info("tcp 停止监听");
     }
     void App::interpreter(const std::string& cmd) {
-        const std::string _send{ R"(send\s+(\b(?:\d{1,3}\.){3}\d{1,3}\b)\s+\"?([^"]*[^\\^"])\"?\s*)" };
+        const std::string _send{ R"(\s*send\s+(\b(?:\d{1,3}\.){3}\d{1,3}\b)\s+\"?([^"]*[^\\^"])\"?\s*)" };
         const std::string _scan{ R"(\s*scan\s*)" };
         const std::string _exit{ R"(\s*exit\s*)" };
         std::smatch       res;
@@ -193,10 +193,26 @@ namespace mtft {
     }
 
     void App::run() {
-        std::string cmd;
+        std::error_code   ec;
+        ip::tcp::acceptor acp(mioc, ip::tcp::endpoint(ip::address_v4::loopback(), CORESPONSEPORT));
         while (!mstop) {
-            std::getline(std::cin, cmd);
-            interpreter(cmd);
+            streambuf buf;
+            auto      sck = std::make_shared<ip::tcp::socket>(acp.accept());
+            spdlog::info("控制台接入");
+            do {
+                try {
+                    auto size = sck->receive(buf.prepare(1024));
+                    buf.commit(size);
+                    std::string cmd((char*)buf.data().begin()->data(), size);
+                    buf.consume(size);
+                    interpreter(cmd);
+                }
+                catch (const std::exception& e) {
+                    spdlog::warn(e.what());
+                    std::cin.get();
+                    break;
+                }
+            } while (!mstop);
         }
     }
 }  // namespace mtft

@@ -8,13 +8,8 @@
 #include "fileblock.h"
 #include "format"
 #include "iostream"
-// #include "spdlog/spdlog.h"
-// #include "spdlog/sinks/basic_file_sink.h"
 int main() {
     using namespace asio;
     using namespace mtft;
-    // auto file_logger = spdlog::basic_logger_mt("file_logger", "logs.txt");
-    // 设置全局默认日志记录器为文件日志记录器
-    // spdlog::set_default_logger(file_logger);
     App().run();
 }
