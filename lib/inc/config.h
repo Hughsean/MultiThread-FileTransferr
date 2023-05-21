@@ -17,6 +17,7 @@ namespace mtft {
     extern const int         JSONSIZE;
     extern const int         UDPPORT;
     extern const int         TCPPORT;
+    extern const int         CORESPONSEPORT;
     extern const int         TIMEOUT;
     extern const int         RECONNECTTIME;
     extern const std::string DIR;
