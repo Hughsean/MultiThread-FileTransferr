@@ -29,7 +29,6 @@ namespace mtft {
         // 端口监听
         void                     udplisten();
         void                     tcplisten();
-        void                     respond(const ip::udp::endpoint& edp);
         bool                     mstop;
         TaskPool                 mpool;
         std::thread              mudplisten;
@@ -39,4 +38,4 @@ namespace mtft {
     };
 }  // namespace mtft
 
-#endif  // MTFT_CONNECTION_H
+#endif  // MTFT_APP_H

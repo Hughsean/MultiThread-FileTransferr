@@ -44,7 +44,7 @@ namespace mtft {
         virtual void Func() = 0;
         explicit Work(int i);
         virtual ~Work();
-        int  getID();
+        int  getID() const;
         void stop();
 
     protected:
@@ -71,7 +71,7 @@ namespace mtft {
 
     class DownWork : public Work {
     public:
-        DownWork(const FileWriter::ptr &fwriter);
+        explicit DownWork(const FileWriter::ptr &fwriter);
         DownWork(DownWork &&) = delete;
         DownWork(DownWork &)  = delete;
         void            Func() override;
@@ -88,7 +88,7 @@ namespace mtft {
     class Task {
     public:
         using ptr = std::shared_ptr<Task>;
-        Task();
+        Task()    = default;
         Task(const std::vector<FileWriter::ptr> &vec, const std::string &fname);
         Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec, const std::string &fname);
         Task(Task &)  = delete;
@@ -103,7 +103,7 @@ namespace mtft {
 
     private:
         std::vector<Work::ptr> mWorks;
-        TaskType               type;
+        TaskType               type{ TaskType::Up };
         std::string            fName;
     };
 

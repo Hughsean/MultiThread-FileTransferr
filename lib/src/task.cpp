@@ -2,7 +2,6 @@
 // Created by xSeung on 2023/4/21.
 //
 #include "task.h"
-#include "config.h"
 #include "filesystem"
 #include "mutex"
 #include "spdlog/spdlog.h"
@@ -37,7 +36,7 @@ namespace mtft {
         stop();
         cstop.notify_one();
     }
-    int Work::getID() {
+    int Work::getID() const {
         return mid;
     }
     void Work::stop() {
@@ -163,7 +162,7 @@ namespace mtft {
                         spdlog::warn("downwork({:2}): 超时", mid);
                         sck->cancel();
                         return;
-                    };
+                    }
                 }
             });
             while (!mFwriter->finished() && !mstop) {
@@ -212,7 +211,7 @@ namespace mtft {
             if (downloadFunc(sck)) {
                 sck->send(buffer(" "));
                 break;
-            };
+            }
         }
         mFwriter->close();
         ret = true;
@@ -227,8 +226,6 @@ namespace mtft {
     FileWriter::ptr DownWork::getFw() {
         return mFwriter;
     }
-
-    Task::Task() = default;
 
     Task::Task(const std::vector<FileWriter::ptr>& vec, const std::string& fname) {
         fName = fname;
@@ -296,7 +293,7 @@ namespace mtft {
             vec.emplace_back(dynamic_cast<DownWork*>(e.get())->getFw()->getFname());
         }
         return vec;
-    };
+    }
     std::string Task::getName() {
         return fName;
     }
@@ -382,8 +379,8 @@ namespace mtft {
                             spdlog::info("开始合并: {}", filename);
                             if (FileWriter::merge(filename, blockvec)) {
                                 spdlog::info("合并完成");
-                            };
-                            std::filesystem::remove_all(std::format("{}{}", filename, DIR));
+                            }
+                            std::filesystem::remove_all(fmt::format("{}{}", filename, DIR));
                             spdlog::info("清理目录: {}{}", filename, DIR);
                         }
                         else {

@@ -4,7 +4,6 @@
 #define _WIN32_WINNT 0x0601
 #include "fileblock.h"
 #include "filesystem"
-#include "format"
 #include "fstream"
 #include "spdlog/spdlog.h"
 
@@ -19,7 +18,7 @@ namespace mtft {
         mifs.seekg((int64_t)offset, std::ios::beg);
     }
 
-    bool FileReader::finished() {
+    bool FileReader::finished() const {
         return mProgress == mLength;
     }
 
@@ -40,7 +39,7 @@ namespace mtft {
         mifs.seekg((int64_t)(mOffset + mProgress), std::ios::beg);
     }
 
-    int FileReader::getID() {
+    int FileReader::getID() const {
         return mID;
     }
 
@@ -74,7 +73,7 @@ namespace mtft {
         }
     }
 
-    bool FileWriter::finished() {
+    bool FileWriter::finished() const {
         return mProgress == mLength;
     }
 
@@ -99,7 +98,7 @@ namespace mtft {
         mofs.seekp((uint32_t)pos, std::ios::beg);
     }
 
-    int FileWriter::getID() {
+    int FileWriter::getID() const {
         return mid;
     }
 
@@ -107,7 +106,7 @@ namespace mtft {
         return mFileName;
     }
 
-    uint64_t FileWriter::getProgress() {
+    uint64_t FileWriter::getProgress() const {
         return mProgress;
     }
 
