@@ -2,12 +2,10 @@
 // Created by xSeung on 2023/4/21.
 //
 #include "app.h"
-#include "config.h"
 #include "filesystem"
 #include "iostream"
 #include "regex"
 #include "spdlog/spdlog.h"
-#include "task.h"
 #include "json/value.h"
 
 namespace mtft {
@@ -94,7 +92,6 @@ namespace mtft {
 
     void App::udplisten() {
         streambuf         buf;
-        error_code        ec;
         ip::udp::endpoint remote;
         ip::udp::endpoint edp(ip::address_v4::any(), UDPPORT);
         ip::udp::socket   sck(mioc, edp);
@@ -193,7 +190,6 @@ namespace mtft {
     }
 
     void App::run() {
-        std::error_code   ec;
         ip::tcp::acceptor acp(mioc, ip::tcp::endpoint(ip::address_v4::loopback(), CORESPONSEPORT));
         while (!mstop) {
             streambuf buf;

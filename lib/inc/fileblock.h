@@ -23,7 +23,7 @@ namespace mtft {
         FileReader(int id, const std::string& fpath, uint64_t offset, uint64_t length);
         /// @brief 返回是否读取完毕
         /// @return 读取完成:true;否则:false
-        bool finished();
+        [[nodiscard]] bool finished() const;
         /// @brief 读取字节流
         /// @param data
         /// @param buffersize
@@ -32,7 +32,7 @@ namespace mtft {
         void     seek(uint64_t progress);
         /// @brief 取得当前块id
         /// @return
-        int                     getID();
+        [[nodiscard]] int       getID() const;
         static std::vector<ptr> Builder(int n, uint64_t totalsize, const std::string& pathWithfname);
 
     private:
@@ -47,25 +47,25 @@ namespace mtft {
     public:
         using ptr = std::shared_ptr<FileWriter>;
         FileWriter(int id, const std::string& filename, const std::string& path, uint64_t offset, uint64_t length);
-        bool                    finished();
+        [[nodiscard]] bool      finished() const;
         uint64_t                write(const void* data, uint64_t buffersize);
         void                    seek(uint64_t pos);
-        int                     getID();
+        [[nodiscard]] int       getID() const;
         const std::string&      getFname();
-        uint64_t                getProgress();
+        [[nodiscard]] uint64_t  getProgress() const;
         static std::vector<ptr> Builder(int n, uint64_t totalsize, const std::string& filename,
                                         const std::string& path);
         static bool             merge(const std::string& fname, const std::vector<std::string>& vec);
         void                    close();
 
     private:
-        const int     mid;
-        std::string   mFileName;
-        std::string   mPath;
-        std::ofstream mofs;
-        uint64_t      mOffset;
-        uint64_t      mLength;
-        uint64_t      mProgress;
+        const int                 mid;
+        std::string               mFileName;
+        std::string               mPath;
+        std::ofstream             mofs;
+        [[maybe_unused]] uint64_t mOffset;
+        uint64_t                  mLength;
+        uint64_t                  mProgress;
     };
 }  // namespace mtft
 #endif  // CN_CD_FILEBLOCK_H
