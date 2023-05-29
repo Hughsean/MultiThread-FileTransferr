@@ -9,4 +9,3 @@ find_package(CURL CONFIG REQUIRED)
 
 target_link_libraries(app PRIVATE lib::lib)
 target_link_libraries(console PRIVATE lib::lib)
-

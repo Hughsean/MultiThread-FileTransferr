@@ -33,7 +33,7 @@ namespace mtft {
         /// @brief 取得当前块id
         /// @return
         [[nodiscard]] int       getID() const;
-        static std::vector<ptr> Builder(int n, uint64_t totalsize, const std::string& pathWithfname);
+        static std::vector<ptr> Build(int n, uint64_t totalsize, const std::string& pathWithfname);
 
     private:
         const int     mID;
@@ -53,9 +53,9 @@ namespace mtft {
         [[nodiscard]] int       getID() const;
         const std::string&      getFname();
         [[nodiscard]] uint64_t  getProgress() const;
-        static std::vector<ptr> Builder(int n, uint64_t totalsize, const std::string& filename,
+        static std::vector<ptr> Build(int n, uint64_t totalsize, const std::string& filename,
                                         const std::string& path);
-        static bool             merge(const std::string& fname, const std::vector<std::string>& vec);
+        static bool             merge(const std::string& fname /*, const std::vector<std::string>& vec*/);
         void                    close();
 
     private:

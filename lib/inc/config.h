@@ -4,14 +4,15 @@
 #include "string"
 
 namespace mtft {
-    /**
-     * @brief 一些常量配置
-     *
-     * @version 0.1
-     * @author 鳯玖 (xSeung@163.com)
-     * @date 2023-04-23
-     * @copyright Copyright (c) 2023
-     */
+/**
+ * @brief 一些常量配置
+ *
+ * @version 0.1
+ * @author 鳯玖 (xSeung@163.com)
+ * @date 2023-04-23
+ * @copyright Copyright (c) 2023
+ */
+#define FilePartName "{}_{}.part"
     extern const int                          BUFFSIZE;
     extern const int                          THREAD_N;
     extern const int                          JSONSIZE;
@@ -20,6 +21,7 @@ namespace mtft {
     extern const int                          CORESPONSEPORT;
     extern const int                          TIMEOUT;
     extern const int                          RECONNECTTIME;
+    extern const int                          ParallelN;
     extern const std::string                  DIR;
     extern const std::string                  PROGRESS;
     extern const std::string                  TYPE;
