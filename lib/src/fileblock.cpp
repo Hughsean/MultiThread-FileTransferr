@@ -93,7 +93,6 @@ namespace mtft {
         if (pos > mProgress) {
             return;
         }
-        pos       = pos >= 0 ? pos : 0;
         mProgress = pos;
         mofs.seekp((uint32_t)pos, std::ios::beg);
     }

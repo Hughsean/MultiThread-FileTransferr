@@ -314,6 +314,7 @@ namespace mtft {
         for (int i = 0; i < THREAD_N * ParallelN; i++) {
             // 工作线程
             mThreads.emplace_back([this, i] {
+                spdlog::info("工作线程({:3}): 准备就绪", i);
                 std::string name;
                 TaskType    type;
                 Work::ptr   work;
@@ -346,6 +347,7 @@ namespace mtft {
         }
         // 调度线程
         mThreads.emplace_back([this] {
+            spdlog::info("调度线程: 准备就绪");
             TaskType type;
             while (!mstop) {
                 // 为合并文件准备
@@ -381,8 +383,8 @@ namespace mtft {
         });
         // 文件合并线程
         mThreads.emplace_back([this] {
+            spdlog::info("文件合并线程: 准备就绪");
             std::vector<std::string> vecn;
-            spdlog::info("文件合并线程监听事件");
             while (!mstop) {
                 {
                     // 访问M临界变量
