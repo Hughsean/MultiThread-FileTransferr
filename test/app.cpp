@@ -3,8 +3,15 @@
 //
 #define _WIN32_WINNT 0x0601
 #include "app.h"
+#include "iostream"
 int main() {
     using namespace asio;
     using namespace mtft;
-    App().run();
+    try {
+        App().run();
+    }
+    catch (std::exception& e) {
+        std::cout << e.what();
+        std::cin.get();
+    }
 }
