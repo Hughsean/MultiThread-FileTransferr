@@ -52,8 +52,6 @@ namespace mtft {
         io_context              mioc;
         std::atomic_bool        mstop;
         std::condition_variable cstop;
-        // std::mutex              mtx;
-        // std::thread             mt;
     };
 
     class UpWork : public Work {
@@ -93,13 +91,13 @@ namespace mtft {
         Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec, const std::string &fname);
         Task(Task &)  = delete;
         Task(Task &&) = delete;
-        void                              stop();
-        bool                              empty();
-        Work::ptr                         getWork();
-        std::vector<std::tuple<int, int>> getPorts();
-        std::vector<std::string>          getVec();
-        std::string                       getName();
-        TaskType                          getType();
+        void                                                stop();
+        bool                                                empty();
+        Work::ptr                                           getWork();
+        std::vector<std::tuple<int, int>>                   getPorts();
+        [[deprecated("无用方法")]] std::vector<std::string> getVec();
+        std::string                                         getName();
+        TaskType                                            getType();
 
     private:
         std::vector<Work::ptr> mWorks;
@@ -122,15 +120,17 @@ namespace mtft {
         void submit(const Task::ptr &task);
 
     private:
-        volatile bool            mstop;       //
-        std::queue<Task::ptr>    mTaskQueue;  // 任务队列
-        std::vector<std::thread> mThreads;    // 工作线程
-        Task::ptr                mCurrent;    // 当前任务
-        std::condition_variable  condw;       //
-        std::condition_variable  conds;       //
-        std::mutex               mtxC;        // mCurrent锁
-        std::mutex               mtxQ;        // mTaskQueue锁
-        std::atomic_int          finish;
+        volatile bool              mstop;       //
+        std::queue<Task::ptr>      mTaskQueue;  // 任务队列
+        std::vector<std::thread>   mThreads;    // 工作线程
+        Task::ptr                  mCurrent;    // 当前任务
+        std::condition_variable    condw;       // 工作条件
+        std::condition_variable    condd;       // 调度条件
+        std::condition_variable    condh;       // 合并条件
+        std::mutex                 mtxC;        // mCurrent锁
+        std::mutex                 mtxQ;        // mTaskQueue锁
+        std::mutex                 mtxM;        // M锁
+        std::map<std::string, int> M;
     };
 }  // namespace mtft
 #endif  // MAIN_TASK_H

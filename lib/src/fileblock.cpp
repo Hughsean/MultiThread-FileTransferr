@@ -43,7 +43,7 @@ namespace mtft {
         return mID;
     }
 
-    auto FileReader::Builder(int n, uint64_t totalsize, const std::string &fpath) -> std::vector<ptr> {
+    auto FileReader::Build(int n, uint64_t totalsize, const std::string &fpath) -> std::vector<ptr> {
         if (n <= 1) {
             spdlog::error("n<=1");
             abort();
@@ -64,7 +64,7 @@ namespace mtft {
                            uint64_t length)
         : mid(id), mOffset(offset), mLength(length), mPath(path) {
         mProgress        = 0;
-        mFileName        = std::format("{}_{}.part", filename, id);
+        mFileName        = std::format(FilePartName, filename, id);
         std::string temp = std::format("{}\\{}", path, mFileName);
         mofs.open(temp, std::ios::binary);
         if (!mofs.good()) {
@@ -110,7 +110,7 @@ namespace mtft {
         return mProgress;
     }
 
-    auto FileWriter::Builder(int n, uint64_t totalsize, const std::string &filename, const std::string &path)
+    auto FileWriter::Build(int n, uint64_t totalsize, const std::string &filename, const std::string &path)
         -> std::vector<ptr> {
         if (n <= 1) {
             spdlog::error("n<=1");
@@ -128,15 +128,15 @@ namespace mtft {
         spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, n * blocksize, lastblock);
         return vec;
     }
-    bool FileWriter::merge(const std::string &fname, const std::vector<std::string> &vec) {
+    bool FileWriter::merge(const std::string &fname) {
         spdlog::info("创建文件: {}", fname);
         std::ofstream ofs(fname, std::ios::binary);
         if (!ofs.good()) {
             spdlog::error("无法创建文件: {}", fname);
             return false;
         }
-        for (auto &&e : vec) {
-            auto          temp = std::format("{}{}\\{}", fname, DIR, e);
+        for (int i = 0; i < THREAD_N; i++) {
+            auto          temp = std::format("{}{}\\" FilePartName, fname, DIR, fname, i);
             std::ifstream _(temp, std::ios::binary);
             if (!_.good()) {
                 spdlog::warn("打开文件 {} 失败", temp);

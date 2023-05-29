@@ -8,6 +8,7 @@ namespace mtft {
     const int                          CORESPONSEPORT = 9999;
     const int                          TIMEOUT        = 2000;
     const int                          RECONNECTTIME  = 3000;
+    const int                          ParallelN      = 3;
     const std::string                  DIR            = ".tmp";
     const std::string                  PROGRESS       = "progress";
     const std::string                  TYPE           = "TYPE";

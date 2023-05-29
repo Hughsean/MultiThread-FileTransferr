@@ -51,7 +51,7 @@ namespace mtft {
             sck.connect(edp);
             // 获取文件信息[name, size]
             int64_t totalsize = infs.seekg(0, std::ios::end).tellg();
-            auto    rvec      = FileReader::Builder(THREAD_N, totalsize, fPath);
+            auto    rvec      = FileReader::Build(THREAD_N, totalsize, fPath);
             auto    name      = fPath.substr(fPath.find_last_of('\\') + 1);
             spdlog::info("name: {} size:{}", name, totalsize);
             // 信息写入json, 并发送到对端
@@ -145,7 +145,7 @@ namespace mtft {
                 std::string dir = std::format("{}{}", name, DIR);
                 spdlog::info("创建工作目录: ", dir);
                 std::filesystem::create_directory(dir);
-                auto wvec = FileWriter::Builder(THREAD_N, totalsize, name, dir);
+                auto wvec = FileWriter::Build(THREAD_N, totalsize, name, dir);
                 auto task = std::make_shared<Task>(wvec, name);
                 mpool.submit(task);
                 // 将FileWriter id对应的端口发送给对方
@@ -183,9 +183,9 @@ namespace mtft {
             mstop = true;
         }
         else {
-            spdlog::info("send ip filepath: 发送文件");
-            spdlog::info("scan            : 扫描局域网对等主机");
-            spdlog::info("exit            : 退出程序");
+            spdlog::warn("send ip filepath: 发送文件");
+            spdlog::warn("scan            : 扫描局域网对等主机");
+            spdlog::warn("exit            : 退出程序");
         }
     }
 
