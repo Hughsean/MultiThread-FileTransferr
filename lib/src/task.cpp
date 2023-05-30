@@ -332,6 +332,8 @@ namespace mtft {
                         name = mCurrent->getName();
                         type = mCurrent->getType();
                     }
+                    // 通知调度线程
+                    condd.notify_one();
                     work->Func();
                     if (type == TaskType::Down) {
                         std::unique_lock<std::mutex> _(mtxM);
@@ -339,8 +341,6 @@ namespace mtft {
                         // 通知合并线程
                         condh.notify_one();
                     }
-                    // 通知调度线程
-                    condd.notify_one();
                 }
                 spdlog::info("工作线程thread({:2})退出", i);
             });
@@ -348,9 +348,9 @@ namespace mtft {
         // 调度线程
         mThreads.emplace_back([this] {
             spdlog::info("调度线程: 准备就绪");
+            // 为合并文件准备
             TaskType type;
             while (!mstop) {
-                // 为合并文件准备
                 {
                     // 访问mCurrent临界资源
                     std::unique_lock<std::mutex> _(mtxC);
