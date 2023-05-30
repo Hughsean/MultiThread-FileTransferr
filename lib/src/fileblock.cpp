@@ -8,7 +8,7 @@
 #include "spdlog/spdlog.h"
 
 namespace mtft {
-    FileReader::FileReader(int id, const std::string &fpath, uint64_t offset, uint64_t length)
+    FileReader::FileReader(int id, const std::string &fpath, int64_t offset, int64_t length)
         : mID(id), mPathWithFileName(fpath), mOffset(offset), mLength(length), mProgress(0) {
         mifs.open(fpath, std::ios::binary);
         if (!mifs.good()) {
@@ -22,34 +22,34 @@ namespace mtft {
         return mProgress == mLength;
     }
 
-    uint64_t FileReader::read(void *data, uint64_t buffersize) {
+    int64_t FileReader::read(void *data, int64_t buffersize) {
         if (this->finished()) {
             spdlog::warn("尝试在已读完的块中继续读出内容");
             return 0;
         }
-        uint64_t remain = mLength - mProgress;
-        uint64_t size   = remain <= buffersize ? remain : buffersize;
+        int64_t remain = mLength - mProgress;
+        int64_t size   = remain <= buffersize ? remain : buffersize;
         mifs.read((char *)data, (int64_t)size);
         mProgress += size;
         return size;
     }
 
-    void FileReader::seek(uint64_t progress) {
+    void FileReader::seek(int64_t progress) {
         mProgress = progress;
-        mifs.seekg((int64_t)(mOffset + mProgress), std::ios::beg);
+        mifs.seekg((mOffset + mProgress), std::ios::beg);
     }
 
     int FileReader::getID() const {
         return mID;
     }
 
-    auto FileReader::Build(int n, uint64_t totalsize, const std::string &fpath) -> std::vector<ptr> {
-        if (n <= 1) {
-            spdlog::error("n<=1");
+    auto FileReader::Build(int n, int64_t totalsize, const std::string &fpath) -> std::vector<ptr> {
+        if (n < 1) {
+            spdlog::error("n<1");
             abort();
         }
-        uint64_t         blocksize = totalsize / (n - 1);
-        uint64_t         lastblock = totalsize - (n - 1) * blocksize;
+        int64_t          blocksize = totalsize / n;
+        int64_t          lastblock = totalsize - (n - 1) * blocksize;
         std::vector<ptr> vec;
         vec.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
@@ -60,8 +60,7 @@ namespace mtft {
         spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, n * blocksize, lastblock);
         return vec;
     }
-    FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, uint64_t offset,
-                           uint64_t length)
+    FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, int64_t offset, int64_t length)
         : mid(id), mOffset(offset), mLength(length), mPath(path) {
         mProgress        = 0;
         mFileName        = std::format(FilePartName, filename, id);
@@ -77,24 +76,25 @@ namespace mtft {
         return mProgress == mLength;
     }
 
-    uint64_t FileWriter::write(const void *data, uint64_t buffersize) {
+    int64_t FileWriter::write(const void *data, int64_t buffersize) {
         if (finished()) {
             spdlog::warn("尝试在已写完的块中继续写入内容");
             return 0;
         }
-        uint64_t remain = mLength - mProgress;
-        uint64_t size   = remain < buffersize ? remain : buffersize;
+        int64_t remain = mLength - mProgress;
+        int64_t size   = remain < buffersize ? remain : buffersize;
         mofs.write((char *)data, (int64_t)size);
         mProgress += size;
         return size;
     }
 
-    void FileWriter::seek(uint64_t pos) {
-        if (pos > mProgress) {
+    void FileWriter::seek(int64_t pos) {
+        if (pos > mProgress || pos < 0) {
+            spdlog::warn("定位越界");
             return;
         }
         mProgress = pos;
-        mofs.seekp((uint32_t)pos, std::ios::beg);
+        mofs.seekp(pos, std::ios::beg);
     }
 
     int FileWriter::getID() const {
@@ -105,19 +105,19 @@ namespace mtft {
         return mFileName;
     }
 
-    uint64_t FileWriter::getProgress() const {
+    int64_t FileWriter::getProgress() const {
         return mProgress;
     }
 
-    auto FileWriter::Build(int n, uint64_t totalsize, const std::string &filename, const std::string &path)
+    auto FileWriter::Build(int n, int64_t totalsize, const std::string &filename, const std::string &path)
         -> std::vector<ptr> {
         if (n <= 1) {
             spdlog::error("n<=1");
             abort();
         }
         std::vector<ptr> vec;
-        uint64_t         blocksize = totalsize / (n - 1);
-        uint64_t         lastblock = totalsize - (n - 1) * blocksize;
+        int64_t          blocksize = totalsize / n;
+        int64_t          lastblock = totalsize - (n - 1) * blocksize;
         vec.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, i * blocksize, blocksize));

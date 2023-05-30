@@ -139,7 +139,7 @@ namespace mtft {
                 auto size = sck.receive(buf.prepare(JSONSIZE));
                 buf.commit(size);
                 ReadJsonFromBuf(buf, json);
-                auto totalsize = json[FILESIZE].asUInt64();
+                auto totalsize = json[FILESIZE].asInt64();
                 auto name      = json[FILENAME].asString();
                 spdlog::info("name:{} size:{}", name, totalsize);
                 std::string dir = std::format("{}{}", name, DIR);
