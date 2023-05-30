@@ -111,8 +111,8 @@ namespace mtft {
 
     auto FileWriter::Build(int n, int64_t totalsize, const std::string &filename, const std::string &path)
         -> std::vector<ptr> {
-        if (n <= 1) {
-            spdlog::error("n<=1");
+        if (n < 1) {
+            spdlog::error("n<1");
             abort();
         }
         std::vector<ptr> vec;

@@ -46,13 +46,19 @@ namespace mtft {
         ip::tcp::socket   sck(mioc);
         streambuf         buf;
         Json::Value       json;
+        auto              name = fPath.substr(fPath.find_last_of('\\') + 1);
+        bool              flag[1];
+        if (mpool.isrepeat(name)) {
+            spdlog::warn("已存在任务: {}", name);
+            spdlog::warn("取消任务提交");
+            return;
+        }
         try {
             // 连接到对端TCP监听线程
             sck.connect(edp);
             // 获取文件信息[name, size]
             int64_t totalsize = infs.seekg(0, std::ios::end).tellg();
             auto    rvec      = FileReader::Build(THREAD_N, totalsize, fPath);
-            auto    name      = fPath.substr(fPath.find_last_of('\\') + 1);
             spdlog::info("name: {} size:{}", name, totalsize);
             // 信息写入json, 并发送到对端
             json[FILESIZE] = totalsize;
@@ -61,6 +67,11 @@ namespace mtft {
             auto size = write(sck, buf);
             buf.consume(size);
             // 接收对端传回的配置信息
+            sck.receive(buffer(flag));
+            if (!flag[0]) {
+                spdlog::warn("对方存在{}{}缓存目录,目前无法发送", name, DIR);
+                return;
+            }
             size = sck.receive(buf.prepare(JSONSIZE));
             buf.commit(size);
             ReadJsonFromBuf(buf, json);
@@ -141,6 +152,11 @@ namespace mtft {
                 ReadJsonFromBuf(buf, json);
                 auto totalsize = json[FILESIZE].asInt64();
                 auto name      = json[FILENAME].asString();
+                if (std::filesystem::exists(std::format("{}{}", name, DIR))) {
+                    write(sck, buffer({ false }));
+                    continue;
+                }
+                write(sck, buffer({ true }));
                 spdlog::info("name:{} size:{}", name, totalsize);
                 std::string dir = std::format("{}{}", name, DIR);
                 spdlog::info("创建工作目录: ", dir);
