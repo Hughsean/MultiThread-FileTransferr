@@ -28,10 +28,8 @@ namespace mtft {
         /// @param data
         /// @param buffersize
         /// @return
-        int64_t read(void* data, int64_t buffersize);
-        void    seek(int64_t progress);
-        /// @brief 取得当前块id
-        /// @return
+        int64_t                 read(void* data, int64_t buffersize);
+        [[maybe_unused]] void   seek(int64_t progress);
         [[nodiscard]] int       getID() const;
         static std::vector<ptr> Build(int n, int64_t totalsize, const std::string& pathWithfname);
 
