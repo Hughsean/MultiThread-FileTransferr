@@ -12,7 +12,6 @@ add_library(
 )
 add_library(lib::lib ALIAS ${PROJECT_NAME})
 
-
 find_package(asio CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(jsoncpp CONFIG REQUIRED)

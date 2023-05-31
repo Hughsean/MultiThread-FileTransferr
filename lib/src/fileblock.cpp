@@ -4,6 +4,7 @@
 #define _WIN32_WINNT 0x0601
 #include "fileblock.h"
 #include "filesystem"
+#include "fmt/core.h"
 #include "fstream"
 #include "spdlog/spdlog.h"
 
@@ -28,13 +29,16 @@ namespace mtft {
             return 0;
         }
         int64_t remain = mLength - mProgress;
-        int64_t size   = remain <= buffersize ? remain : buffersize;
-        mifs.read((char *)data, (int64_t)size);
+        int64_t size   = remain < buffersize ? remain : buffersize;
+        mifs.read((char *)data, size);
         mProgress += size;
         return size;
     }
 
     void FileReader::seek(int64_t progress) {
+        if (progress > mLength || progress < 0) {
+            return;
+        }
         mProgress = progress;
         mifs.seekg((mOffset + mProgress), std::ios::beg);
     }
@@ -51,20 +55,20 @@ namespace mtft {
         int64_t          blocksize = totalsize / n;
         int64_t          lastblock = totalsize - (n - 1) * blocksize;
         std::vector<ptr> vec;
-        vec.reserve(n - 1);
+        vec.reserve(n);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileReader>(i, fpath, blocksize * i, blocksize));
             spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", i, i * blocksize, blocksize);
         }
-        vec.emplace_back(std::make_shared<FileReader>(n - 1, fpath, n * blocksize, lastblock));
-        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, n * blocksize, lastblock);
+        vec.emplace_back(std::make_shared<FileReader>(n - 1, fpath, (n - 1) * blocksize, lastblock));
+        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, (n - 1) * blocksize, lastblock);
         return vec;
     }
     FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, int64_t offset, int64_t length)
         : mid(id), mOffset(offset), mLength(length), mPath(path) {
         mProgress        = 0;
-        mFileName        = std::format(FilePartName, filename, id);
-        std::string temp = std::format("{}\\{}", path, mFileName);
+        mFileName        = fmt::format(FilePartName, filename, id);
+        std::string temp = fmt::format("{}\\{}", path, mFileName);
         mofs.open(temp, std::ios::binary);
         if (!mofs.good()) {
             spdlog::error("文件打开失败({})", temp);
@@ -83,7 +87,7 @@ namespace mtft {
         }
         int64_t remain = mLength - mProgress;
         int64_t size   = remain < buffersize ? remain : buffersize;
-        mofs.write((char *)data, (int64_t)size);
+        mofs.write((char *)data, size);
         mProgress += size;
         return size;
     }
@@ -111,20 +115,20 @@ namespace mtft {
 
     auto FileWriter::Build(int n, int64_t totalsize, const std::string &filename, const std::string &path)
         -> std::vector<ptr> {
-        if (n <= 1) {
-            spdlog::error("n<=1");
+        if (n < 1) {
+            spdlog::error("n<1");
             abort();
         }
         std::vector<ptr> vec;
         int64_t          blocksize = totalsize / n;
         int64_t          lastblock = totalsize - (n - 1) * blocksize;
-        vec.reserve(n - 1);
+        vec.reserve(n);
         for (int i = 0; i < n - 1; i++) {
             vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, i * blocksize, blocksize));
             spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", i, i * blocksize, blocksize);
         }
-        vec.emplace_back(std::make_shared<FileWriter>(n - 1, filename, path, n * blocksize, lastblock));
-        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, n * blocksize, lastblock);
+        vec.emplace_back(std::make_shared<FileWriter>(n - 1, filename, path, (n - 1) * blocksize, lastblock));
+        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, (n - 1) * blocksize, lastblock);
         return vec;
     }
     bool FileWriter::merge(const std::string &fname) {
@@ -135,7 +139,7 @@ namespace mtft {
             return false;
         }
         for (int i = 0; i < THREAD_N; i++) {
-            auto          temp = std::format("{}{}\\" FilePartName, fname, DIR, fname, i);
+            auto          temp = fmt::format("{}{}\\" FilePartName, fname, DIR, fname, i);
             std::ifstream _(temp, std::ios::binary);
             if (!_.good()) {
                 spdlog::warn("打开文件 {} 失败", temp);

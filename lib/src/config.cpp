@@ -1,6 +1,6 @@
 #include "config.h"
 namespace mtft {
-    const int                          THREAD_N       = 3;
+    const int                          THREAD_N       = 1;
     const int                          BUFFSIZE       = 1024;
     const int                          JSONSIZE       = 5120;
     const int                          UDPPORT        = 8080;
