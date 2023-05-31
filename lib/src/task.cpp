@@ -55,13 +55,13 @@ namespace mtft {
         std::thread             t;
         std::mutex              mtx;
         std::condition_variable cond;
+        streambuf               buf;
+        uint32_t                size;
+        uint32_t                progress;
+        Json::Value             json;
         std::stringstream       tid;
         tid << std::this_thread::get_id();
         try {
-            streambuf   buf;
-            uint32_t    size;
-            uint32_t    progress;
-            Json::Value json;
             // 接收JSON文件
             size = sck->receive(buf.prepare(JSONSIZE));
             buf.commit(size);
@@ -75,7 +75,7 @@ namespace mtft {
                 while (!exit) {
                     std::unique_lock<std::mutex> _(mtx);
                     if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
-                        spdlog::warn("upwork({:6}): 超时", tid.str());
+                        spdlog::warn("upwork({:6}): 发送超时", tid.str());
                         sck->cancel();
                         return;
                     }
@@ -90,7 +90,6 @@ namespace mtft {
             }
         }
         catch (const std::exception& e) {
-            spdlog::warn("upwork({:6}): {}", tid.str(), e.what());
             t.join();
             return false;
         }
@@ -103,9 +102,9 @@ namespace mtft {
     void UpWork::Func() {
         error_code        ec;
         std::thread       t;
+        bool              ret;
         std::stringstream tid;
         tid << std::this_thread::get_id();
-        bool ret;
         while (!mstop) {
             ret      = false;
             auto sck = std::make_shared<ip::tcp::socket>(mioc);
@@ -154,12 +153,12 @@ namespace mtft {
         std::thread             t;
         std::mutex              mtx;
         std::condition_variable cond;
+        streambuf               buf;
+        Json::Value             json;
+        uint32_t                size;
         std::stringstream       tid;
         tid << std::this_thread::get_id();
         try {
-            streambuf   buf;
-            Json::Value json;
-            uint32_t    size;
             // 向json写入配置
             json[PROGRESS] = mFwriter->getProgress();
             // json配置写入缓存, 并发送
@@ -169,7 +168,7 @@ namespace mtft {
                 while (!exit) {
                     std::unique_lock<std::mutex> _(mtx);
                     if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
-                        spdlog::warn("downwork({:6}): 超时", tid.str());
+                        spdlog::warn("downwork({:6}): 接收超时", tid.str());
                         sck->cancel();
                         return;
                     }
@@ -225,12 +224,12 @@ namespace mtft {
             cstop.notify_one();
             t.join();
             if (b) {
-                sck->send(buffer(" "));
+                sck->send(buffer(""));
                 break;
             }
         }
-        mFwriter->close();
         spdlog::info("downwork({:6}): 已完成数据接收", tid.str());
+        mFwriter->close();
     }
 
     int DownWork::GetPort() {
@@ -340,8 +339,11 @@ namespace mtft {
                     // 通知调度线程
                     condd.notify_one();
                     work->Func();
-                    std::unique_lock<std::mutex> _(mtxM);
-                    M.at({ name, type })++;
+                    {
+                        // 访问M临界变量
+                        std::unique_lock<std::mutex> _(mtxM);
+                        M.at({ name, type })++;
+                    }
                     // 通知合并线程
                     condh.notify_one();
                 }
@@ -356,24 +358,19 @@ namespace mtft {
                     // 访问mCurrent临界资源
                     std::unique_lock<std::mutex> _(mtxC);
                     condd.wait(_, [this] { return mstop || mCurrent->empty(); });
+                    // 访问mTaskQueue临界资源
+                    std::unique_lock<std::mutex> _ul(mtxQ);
+                    condd.wait(_ul, [this] { return mstop || !mTaskQueue.empty(); });
                     if (mstop) {
                         break;
                     }
-                    // 访问mTaskQueue临界资源
-                    {
-                        std::unique_lock<std::mutex> _ul(mtxQ);
-                        condd.wait(_ul, [this] { return mstop || !mTaskQueue.empty(); });
-                        if (mstop) {
-                            break;
-                        }
-                        mCurrent = mTaskQueue.front();
-                        mTaskQueue.pop();
-                    }
-                    // 通知工作线程
-                    condw.notify_one();
-                    // 通知文件合并线程
-                    condh.notify_one();
+                    mCurrent = mTaskQueue.front();
+                    mTaskQueue.pop();
                 }
+                // 通知工作线程
+                condw.notify_one();
+                // 通知文件合并线程
+                condh.notify_one();
                 spdlog::info("调度线程thread({:2}): 完成一次调度", THREAD_N);
             }
             spdlog::info("调度线程thread({:2})退出", THREAD_N);
@@ -400,12 +397,17 @@ namespace mtft {
                             }
                         }
                         for (auto&& e : vecerase) {
+                            spdlog::info("上传任务: {}完成", e);
                             M.erase({ e, TaskType::Up });
                         }
                         vecerase.clear();
                         return !vecmerge.empty() || mstop;
                     });
+                    for (auto&& n : vecmerge) {
+                        M.erase({ n, TaskType::Down });
+                    }
                 }
+                condw.notify_one();
                 if (mstop) {
                     break;
                 }
@@ -417,10 +419,6 @@ namespace mtft {
                     }
                     std::filesystem::remove_all(fmt::format("{}{}", e, DIR));
                     spdlog::info("清理目录: {}{}", e, DIR);
-                }
-                std::unique_lock<std::mutex> ul(mtxM);
-                for (auto&& n : vecmerge) {
-                    M.erase({ n, TaskType::Down });
                 }
                 vecmerge.clear();
             }
@@ -440,14 +438,20 @@ namespace mtft {
     }
 
     bool TaskPool::isrepeat(const std::string& name) {
-        std::unique_lock<std::mutex> _(mtxM);
-        for (auto&& [tup, i] : M) {
-            auto&& [n, t] = tup;
-            if (name == n && t == TaskType::Up) {
-                return true;
+        bool ret = false;
+        {
+            std::unique_lock<std::mutex> _(mtxM);
+            for (auto&& [tup, i] : M) {
+                auto&& [n, t] = tup;
+                if (name == n && t == TaskType::Up) {
+                    ret = true;
+                    break;
+                }
             }
         }
-        return false;
+        condw.notify_one();
+        condh.notify_one();
+        return ret;
     }
 
     void TaskPool::submit(const Task::ptr& task) {
