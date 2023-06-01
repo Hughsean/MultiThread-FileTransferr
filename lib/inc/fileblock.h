@@ -29,8 +29,9 @@ namespace mtft {
         /// @param buffersize
         /// @return
         int64_t                 read(void* data, int64_t buffersize);
-        [[maybe_unused]] void   seek(int64_t progress);
+        void                    seek(int64_t progress);
         [[nodiscard]] int       getID() const;
+        void                    close();
         static std::vector<ptr> Build(int n, int64_t totalsize, const std::string& pathWithfname);
 
     private:
@@ -47,13 +48,13 @@ namespace mtft {
         FileWriter(int id, const std::string& filename, const std::string& path, int64_t offset, int64_t length);
         [[nodiscard]] bool      finished() const;
         int64_t                 write(const void* data, int64_t buffersize);
-        void                    seek(int64_t pos);
+        [[maybe_unused]] void   seek(int64_t pos);
         [[nodiscard]] int       getID() const;
         const std::string&      getFname();
         [[nodiscard]] int64_t   getProgress() const;
-        static std::vector<ptr> Build(int n, int64_t totalsize, const std::string& filename, const std::string& path);
         static bool             merge(const std::string& fname /*, const std::vector<std::string>& vec*/);
         void                    close();
+        static std::vector<ptr> Build(int n, int64_t totalsize, const std::string& filename, const std::string& path);
 
     private:
         const int                mid;

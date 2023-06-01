@@ -47,6 +47,10 @@ namespace mtft {
         return mID;
     }
 
+    void FileReader::close() {
+        mifs.close();
+    }
+
     auto FileReader::Build(int n, int64_t totalsize, const std::string &fpath) -> std::vector<ptr> {
         if (n < 1) {
             spdlog::error("n<1");
@@ -64,6 +68,7 @@ namespace mtft {
         spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, (n - 1) * blocksize, lastblock);
         return vec;
     }
+
     FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, int64_t offset, int64_t length)
         : mid(id), mOffset(offset), mLength(length), mPath(path) {
         mProgress        = 0;
@@ -113,24 +118,6 @@ namespace mtft {
         return mProgress;
     }
 
-    auto FileWriter::Build(int n, int64_t totalsize, const std::string &filename, const std::string &path)
-        -> std::vector<ptr> {
-        if (n < 1) {
-            spdlog::error("n<1");
-            abort();
-        }
-        std::vector<ptr> vec;
-        int64_t          blocksize = totalsize / n;
-        int64_t          lastblock = totalsize - (n - 1) * blocksize;
-        vec.reserve(n);
-        for (int i = 0; i < n - 1; i++) {
-            vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, i * blocksize, blocksize));
-            spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", i, i * blocksize, blocksize);
-        }
-        vec.emplace_back(std::make_shared<FileWriter>(n - 1, filename, path, (n - 1) * blocksize, lastblock));
-        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, (n - 1) * blocksize, lastblock);
-        return vec;
-    }
     bool FileWriter::merge(const std::string &fname) {
         spdlog::info("创建文件: {}", fname);
         std::ofstream ofs(fname, std::ios::binary);
@@ -154,7 +141,27 @@ namespace mtft {
         ofs.close();
         return true;
     }
+
     void FileWriter::close() {
         mofs.close();
+    }
+
+    auto FileWriter::Build(int n, int64_t totalsize, const std::string &filename, const std::string &path)
+        -> std::vector<ptr> {
+        if (n < 1) {
+            spdlog::error("n<1");
+            abort();
+        }
+        std::vector<ptr> vec;
+        int64_t          blocksize = totalsize / n;
+        int64_t          lastblock = totalsize - (n - 1) * blocksize;
+        vec.reserve(n);
+        for (int i = 0; i < n - 1; i++) {
+            vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, i * blocksize, blocksize));
+            spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", i, i * blocksize, blocksize);
+        }
+        vec.emplace_back(std::make_shared<FileWriter>(n - 1, filename, path, (n - 1) * blocksize, lastblock));
+        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, (n - 1) * blocksize, lastblock);
+        return vec;
     }
 }  // namespace mtft

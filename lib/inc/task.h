@@ -41,7 +41,7 @@ namespace mtft {
     class Work : Base {
     public:
         using ptr           = std::shared_ptr<Work>;
-        virtual void Func() = 0;
+        virtual void Func(int id) = 0;
         explicit Work(int i);
         virtual ~Work();
         int  getID() const;
@@ -59,10 +59,10 @@ namespace mtft {
         UpWork(const ip::tcp::endpoint &remote, const FileReader::ptr &reader);
         UpWork(UpWork &&) = delete;
         UpWork(UpWork &)  = delete;
-        void Func() override;
+        void Func(int id) override;
 
     private:
-        bool              uploadFunc(const socket_ptr &sck);
+        bool              uploadFunc(const socket_ptr &sck,int id);
         FileReader::ptr   mReader;
         ip::tcp::endpoint mremote;
     };
@@ -72,12 +72,12 @@ namespace mtft {
         explicit DownWork(const FileWriter::ptr &fwriter);
         DownWork(DownWork &&) = delete;
         DownWork(DownWork &)  = delete;
-        void            Func() override;
+        void            Func(int id) override;
         int             GetPort();
         FileWriter::ptr getFw();
 
     private:
-        bool                               downloadFunc(const socket_ptr &sck);
+        bool                               downloadFunc(const socket_ptr &sck,int id);
         FileWriter::ptr                    mFwriter;
         std::shared_ptr<ip::tcp::acceptor> macp;
         ip::tcp::endpoint                  medp;
@@ -125,13 +125,11 @@ namespace mtft {
         std::queue<Task::ptr>                            mTaskQueue;  // 任务队列
         std::vector<std::thread>                         mThreads;    // 工作线程
         Task::ptr                                        mCurrent;    // 当前任务
-        std::condition_variable                          condw;       // 工作条件
-        std::condition_variable                          condd;       // 调度条件
-        std::condition_variable                          condh;       // 合并条件
+        std::condition_variable                          cond;       // 工作条件
         std::mutex                                       mtxC;        // mCurrent锁
         std::mutex                                       mtxQ;        // mTaskQueue锁
-        std::mutex                                       mtxM;        // M锁
-        std::map<std::tuple<std::string, TaskType>, int> M;
+        std::mutex                                       mtxM;        // map锁
+        std::map<std::tuple<std::string, TaskType>, int> progressmap;
     };
 }  // namespace mtft
 #endif  // MAIN_TASK_H

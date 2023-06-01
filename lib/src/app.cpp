@@ -42,12 +42,14 @@ namespace mtft {
             spdlog::warn("文件({})读取失败", fPath);
             return;
         }
+        int64_t           totalsize = infs.seekg(0, std::ios::end).tellg();
         ip::tcp::endpoint edp(ip, TCPPORT);
         ip::tcp::socket   sck(mioc);
         streambuf         buf;
         Json::Value       json;
         auto              name = fPath.substr(fPath.find_last_of('\\') + 1);
         bool              flag[1];
+        infs.close();
         if (mpool.isrepeat(name)) {
             spdlog::warn("已存在任务: {}", name);
             spdlog::warn("取消任务提交");
@@ -57,7 +59,6 @@ namespace mtft {
             // 连接到对端TCP监听线程
             sck.connect(edp);
             // 获取文件信息[name, size]
-            int64_t totalsize = infs.seekg(0, std::ios::end).tellg();
             spdlog::info("name: {} size:{}", name, totalsize);
             auto rvec = FileReader::Build(THREAD_N, totalsize, fPath);
             // 信息写入json, 并发送到对端
@@ -135,6 +136,7 @@ namespace mtft {
         }
         spdlog::info("UDP停止监听");
     }
+
     void App::tcplisten() {
         streambuf         buf;
         ip::tcp::acceptor acp(mioc, ip::tcp::endpoint(ip::address_v4::any(), TCPPORT));
@@ -157,13 +159,12 @@ namespace mtft {
                     continue;
                 }
                 write(sck, buffer({ true }));
-                spdlog::info("name:{} size:{}", name, totalsize);
                 std::string dir = fmt::format("{}{}", name, DIR);
-                spdlog::info("创建工作目录: ", dir);
+                spdlog::info("创建工作目录: {}", dir);
                 std::filesystem::create_directory(dir);
+                spdlog::info("name:{} size:{}", name, totalsize);
                 auto wvec = FileWriter::Build(THREAD_N, totalsize, name, dir);
                 auto task = std::make_shared<Task>(wvec, name);
-                mpool.submit(task);
                 // 将FileWriter id对应的端口发送给对方
                 auto        id_port = task->getPorts();
                 Json::Value elem;
@@ -175,6 +176,7 @@ namespace mtft {
                 }
                 WriteJsonToBuf(buf, arr);
                 write(sck, buf);
+                mpool.submit(task);
             }
             catch (const std::exception& e) {
                 spdlog::warn(e.what());
@@ -221,7 +223,6 @@ namespace mtft {
                 }
                 catch (const std::exception& e) {
                     spdlog::warn(e.what());
-                    std::cin.get();
                     break;
                 }
             } while (!mstop);

@@ -5,6 +5,7 @@
 #include "app.h"
 #include "iostream"
 int main() {
+    std::ios::sync_with_stdio(false);
     using namespace asio;
     using namespace mtft;
     try {
