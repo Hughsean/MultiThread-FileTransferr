@@ -43,6 +43,7 @@ namespace mtft {
     }
     void Work::stop() {
         mstop = true;
+        cstop.notify_one();
     }
 
     UpWork::UpWork(const ip::tcp::endpoint& remote, const FileReader::ptr& reader) : Work(reader->getID()) {
@@ -59,6 +60,7 @@ namespace mtft {
         uint32_t                size;
         uint32_t                progress;
         Json::Value             json;
+        bool                    fin = true;
         try {
             // 接收JSON文件
             size = sck->receive(buf.prepare(JSONSIZE));
@@ -88,52 +90,56 @@ namespace mtft {
             }
         }
         catch (const std::exception& e) {
-            t.join();
-            return false;
+            fin = false;
         }
-        exit = true;
-        cond.notify_one();
-        t.join();
-        return true;
+        if (fin || mstop) {
+            exit = true;
+            cond.notify_one();
+        }
+        if (t.joinable()) {
+            t.join();
+        }
+        return fin;
     }
 
     void UpWork::Func(int id) {
-        error_code  ec;
-        std::thread t;
-        bool        ret;
+        error_code                       ec;
+        bool                             fin{ false };
+        std::shared_ptr<ip::tcp::socket> sck;
+        auto                             t = std::thread([&, this] {
+            std::mutex                   m;
+            std::unique_lock<std::mutex> _(m);
+            cstop.wait(_, [&, this] {
+                if (mstop || fin) {
+                    if (sck != nullptr) {
+                        sck->cancel();
+                    }
+                    return true;
+                }
+                return false;
+            });
+        });
         while (!mstop) {
-            ret      = false;
-            auto sck = std::make_shared<ip::tcp::socket>(mioc);
+            sck = std::make_shared<ip::tcp::socket>(mioc);
             sck->connect(mremote, ec);
             if (ec) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(RECONNECTTIME));
-                continue;
             }
-            t = std::thread([&, this] {
-                std::mutex                   m;
-                std::unique_lock<std::mutex> _(m);
-                cstop.wait(_, [&, this] {
-                    if (mstop || ret) {
-                        if (!ret) {
-                            sck->cancel();
-                        }
-                        return true;
-                    }
-                    return false;
-                });
-            });
-            spdlog::info("thread(up )({:2})连接到: {}", id, mremote.address().to_string());
-            auto fin = uploadFunc(sck, id);
-            ret      = true;
-            cstop.notify_one();
-            t.join();
+            else {
+                spdlog::info("thread(up )({:2})连接到: {}", id, mremote.address().to_string());
+                fin = uploadFunc(sck, id);
+            }
             if (fin) {
                 streambuf buf;
                 sck->receive(buf.prepare(BUFFSIZE));
                 break;
             }
         }
-        spdlog::info("thread(up )({:2}): 已完成数据发送", id);
+        cstop.notify_one();
+        t.join();
+        if (fin) {
+            spdlog::info("thread(up )({:2}): 已完成数据发送", id);
+        }
         mReader->close();
     }
 
@@ -152,6 +158,7 @@ namespace mtft {
         streambuf               buf;
         Json::Value             json;
         uint32_t                size;
+        bool                    fin = true;
         try {
             // 向json写入配置
             json[PROGRESS] = mFwriter->getProgress();
@@ -177,48 +184,51 @@ namespace mtft {
             }
         }
         catch (const std::exception& e) {
-            t.join();
-            return false;
+            fin = false;
         }
-        exit = true;
-        cond.notify_one();
-        t.join();
-        return true;
+        if (fin || mstop) {
+            exit = true;
+            cond.notify_one();
+        }
+        if (t.joinable()) {
+            t.join();
+        }
+        return fin;
     }
 
     void DownWork::Func(int id) {
-        error_code  ec;
-        bool        ret{ false };
-        std::thread t;
+        error_code ec;
+        bool       fin{ false };
+        auto       t = std::thread([&, this] {
+            std::mutex                   m;
+            std::unique_lock<std::mutex> _(m);
+            cstop.wait(_, [&, this] {
+                if (mstop || fin) {
+                    macp->cancel();
+                    return true;
+                }
+                return false;
+            });
+        });
         while (!mstop) {
             auto sck = std::make_shared<ip::tcp::socket>(macp->accept(ec));
-            t        = std::thread([&, this] {
-                std::mutex                   m;
-                std::unique_lock<std::mutex> _(m);
-                cstop.wait(_, [&, this] {
-                    if (mstop || ret) {
-                        if (mstop) {
-                            sck->cancel();
-                        }
-                        return true;
-                    }
-                    return false;
-                });
-            });
             if (ec) {
                 continue;
             }
-            spdlog::info("thread(down)({:2})接收连接: {}", id, sck->remote_endpoint().address().to_string());
-            auto fin = downloadFunc(sck, id);
-            ret      = true;
-            cstop.notify_one();
-            t.join();
+            else {
+                spdlog::info("thread(down)({:2})接收连接: {}", id, sck->remote_endpoint().address().to_string());
+                fin = downloadFunc(sck, id);
+            }
             if (fin) {
                 sck->send(buffer(""));
                 break;
             }
         }
-        spdlog::info("thread(down)({:2}): 已完成数据接收", id);
+        cstop.notify_one();
+        t.join();
+        if (fin) {
+            spdlog::info("thread(down)({:2}): 已完成数据接收", id);
+        }
         mFwriter->close();
     }
 
@@ -226,11 +236,8 @@ namespace mtft {
         return macp->local_endpoint().port();
     }
 
-    FileWriter::ptr DownWork::getFw() {
-        return mFwriter;
-    }
-
     Task::Task(const std::vector<FileWriter::ptr>& vec, const std::string& fname) {
+        n     = (int)vec.size();
         fName = fname;
         type  = TaskType::Down;
         mWorks.reserve(vec.size());
@@ -240,6 +247,7 @@ namespace mtft {
     }
 
     Task::Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>>& vec, const std::string& fname) {
+        n     = (int)vec.size();
         fName = fname;
         type  = TaskType::Up;
         mWorks.reserve(vec.size());
@@ -255,13 +263,14 @@ namespace mtft {
     }
 
     bool Task::empty() {
-        return mWorks.empty();
+        return n == 0;
     }
 
     Work::ptr Task::getWork() {
-        auto t = mWorks.back();
-        mWorks.pop_back();
-        return t;
+        if (n == 0) {
+            std::abort();
+        }
+        return mWorks.at(--n);
     }
     /**
      * @brief 返回下载任务各进程监听的对应端口
@@ -291,7 +300,7 @@ namespace mtft {
 
     TaskPool::TaskPool() {
         mstop    = false;
-        mCurrent = std::make_shared<Task>();
+        mCurrent = std::make_shared<Task>(std::vector<FileWriter::ptr>{}, "NULL");
         for (int i = 0; i < THREAD_N * ParallelN; i++) {
             // 工作线程
             mThreads.emplace_back([this, i] {
@@ -320,6 +329,9 @@ namespace mtft {
                     }
                     spdlog::info("thread({:2}): 开始工作", i);
                     work->Func(i);
+                    if (mstop) {
+                        break;
+                    }
                     {
                         // 访问M临界变量
                         std::unique_lock<std::mutex> _(mtxM);

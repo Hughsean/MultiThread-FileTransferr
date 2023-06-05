@@ -69,8 +69,8 @@ namespace mtft {
         return vec;
     }
 
-    FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, int64_t offset, int64_t length)
-        : mid(id), mOffset(offset), mLength(length), mPath(path) {
+    FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, int64_t length)
+        : mid(id), mLength(length), mPath(path) {
         mProgress        = 0;
         mFileName        = fmt::format(FilePartName, filename, id);
         std::string temp = fmt::format("{}\\{}", path, mFileName);
@@ -95,15 +95,6 @@ namespace mtft {
         mofs.write((char *)data, size);
         mProgress += size;
         return size;
-    }
-
-    void FileWriter::seek(int64_t pos) {
-        if (pos > mProgress || pos < 0) {
-            spdlog::warn("定位越界");
-            return;
-        }
-        mProgress = pos;
-        mofs.seekp(pos, std::ios::beg);
     }
 
     int FileWriter::getID() const {
@@ -157,11 +148,11 @@ namespace mtft {
         int64_t          lastblock = totalsize - (n - 1) * blocksize;
         vec.reserve(n);
         for (int i = 0; i < n - 1; i++) {
-            vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, i * blocksize, blocksize));
-            spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", i, i * blocksize, blocksize);
+            vec.emplace_back(std::make_shared<FileWriter>(i, filename, path, blocksize));
+            spdlog::info("id:{:2}, blocksize:{:10}", i, blocksize);
         }
-        vec.emplace_back(std::make_shared<FileWriter>(n - 1, filename, path, (n - 1) * blocksize, lastblock));
-        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, (n - 1) * blocksize, lastblock);
+        vec.emplace_back(std::make_shared<FileWriter>(n - 1, filename, path, lastblock));
+        spdlog::info("id:{:2}, blocksize:{:10}", n - 1, lastblock);
         return vec;
     }
 }  // namespace mtft

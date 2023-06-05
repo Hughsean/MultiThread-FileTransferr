@@ -45,25 +45,23 @@ namespace mtft {
     class FileWriter : Base {
     public:
         using ptr = std::shared_ptr<FileWriter>;
-        FileWriter(int id, const std::string& filename, const std::string& path, int64_t offset, int64_t length);
+        FileWriter(int id, const std::string& filename, const std::string& path, int64_t length);
         [[nodiscard]] bool      finished() const;
         int64_t                 write(const void* data, int64_t buffersize);
-        [[maybe_unused]] void   seek(int64_t pos);
         [[nodiscard]] int       getID() const;
         const std::string&      getFname();
         [[nodiscard]] int64_t   getProgress() const;
-        static bool             merge(const std::string& fname /*, const std::vector<std::string>& vec*/);
+        static bool             merge(const std::string& fname);
         void                    close();
         static std::vector<ptr> Build(int n, int64_t totalsize, const std::string& filename, const std::string& path);
 
     private:
-        const int                mid;
-        std::string              mFileName;
-        std::string              mPath;
-        std::ofstream            mofs;
-        [[maybe_unused]] int64_t mOffset;
-        int64_t                  mLength;
-        int64_t                  mProgress;
+        const int     mid;
+        std::string   mFileName;
+        std::string   mPath;
+        std::ofstream mofs;
+        int64_t       mLength;
+        int64_t       mProgress;
     };
 }  // namespace mtft
 #endif  // CN_CD_FILEBLOCK_H

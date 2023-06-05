@@ -29,7 +29,7 @@ namespace mtft {
         // 端口监听
         void                     udplisten();
         void                     tcplisten();
-        bool                     mstop;
+        volatile bool            mstop;
         TaskPool                 mpool;
         std::thread              mudplisten;
         std::thread              mtcplisten;

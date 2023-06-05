@@ -31,9 +31,6 @@ namespace mtft {
     extern const std::string                  FILESIZE;
     extern const std::string                  ID;
     extern const std::string                  PORT;
-    [[maybe_unused]] extern const std::string SEND;
-    [[maybe_unused]] extern const std::string OK;
-    [[maybe_unused]] extern const std::string HOSTNAME;
 
     /**
      * @brief 禁止移动, 禁止复制

@@ -40,7 +40,7 @@ namespace mtft {
 
     class Work : Base {
     public:
-        using ptr           = std::shared_ptr<Work>;
+        using ptr                 = std::shared_ptr<Work>;
         virtual void Func(int id) = 0;
         explicit Work(int i);
         virtual ~Work();
@@ -57,12 +57,10 @@ namespace mtft {
     class UpWork : public Work {
     public:
         UpWork(const ip::tcp::endpoint &remote, const FileReader::ptr &reader);
-        UpWork(UpWork &&) = delete;
-        UpWork(UpWork &)  = delete;
         void Func(int id) override;
 
     private:
-        bool              uploadFunc(const socket_ptr &sck,int id);
+        bool              uploadFunc(const socket_ptr &sck, int id);
         FileReader::ptr   mReader;
         ip::tcp::endpoint mremote;
     };
@@ -70,39 +68,34 @@ namespace mtft {
     class DownWork : public Work {
     public:
         explicit DownWork(const FileWriter::ptr &fwriter);
-        DownWork(DownWork &&) = delete;
-        DownWork(DownWork &)  = delete;
-        void            Func(int id) override;
-        int             GetPort();
-        FileWriter::ptr getFw();
+        void Func(int id) override;
+        int  GetPort();
 
     private:
-        bool                               downloadFunc(const socket_ptr &sck,int id);
+        bool                               downloadFunc(const socket_ptr &sck, int id);
         FileWriter::ptr                    mFwriter;
         std::shared_ptr<ip::tcp::acceptor> macp;
         ip::tcp::endpoint                  medp;
     };
 
-    class Task {
+    class Task : public Base {
     public:
         using ptr = std::shared_ptr<Task>;
-        Task()    = default;
+        Task()    = delete;
         Task(const std::vector<FileWriter::ptr> &vec, const std::string &fname);
         Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec, const std::string &fname);
-        Task(Task &)  = delete;
-        Task(Task &&) = delete;
-        void                                              stop();
-        bool                                              empty();
-        Work::ptr                                         getWork();
-        std::vector<std::tuple<int, int>>                 getPorts();
-        [[deprecated("已丢弃")]] std::vector<std::string> getVec();
-        std::string                                       getName();
-        TaskType                                          getType();
+        void                              stop();
+        bool                              empty();
+        Work::ptr                         getWork();
+        std::vector<std::tuple<int, int>> getPorts();
+        std::string                       getName();
+        TaskType                          getType();
 
     private:
         std::vector<Work::ptr> mWorks;
-        TaskType               type{ TaskType::Up };
+        TaskType               type;
         std::string            fName;
+        int                    n;
     };
 
     /**
@@ -125,7 +118,7 @@ namespace mtft {
         std::queue<Task::ptr>                            mTaskQueue;  // 任务队列
         std::vector<std::thread>                         mThreads;    // 工作线程
         Task::ptr                                        mCurrent;    // 当前任务
-        std::condition_variable                          cond;       // 工作条件
+        std::condition_variable                          cond;        // 工作条件
         std::mutex                                       mtxC;        // mCurrent锁
         std::mutex                                       mtxQ;        // mTaskQueue锁
         std::mutex                                       mtxM;        // map锁
