@@ -53,14 +53,23 @@ namespace mtft {
 
     bool UpWork::uploadFunc(const socket_ptr& sck, int id) {
         std::atomic_bool        exit{ false };
-        std::thread             t;
-        std::mutex              mtx;
-        std::condition_variable cond;
         streambuf               buf;
         uint32_t                size;
         uint32_t                progress;
         Json::Value             json;
         bool                    fin = true;
+        std::condition_variable cond;
+        std::mutex              mtx;
+        auto                    t = std::thread([&] {
+            while (!exit) {
+                std::unique_lock<std::mutex> _(mtx);
+                if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
+                    spdlog::warn("thread(up )({:2}): 发送超时", id);
+                    sck->cancel();
+                    return;
+                }
+            }
+        });
         try {
             // 接收JSON文件
             size = sck->receive(buf.prepare(JSONSIZE));
@@ -71,16 +80,6 @@ namespace mtft {
             mReader->seek(progress);
             spdlog::info("thread(up )({:2}): 调整进度到{}", id, progress);
             // 发送文件
-            t = std::thread([&] {
-                while (!exit) {
-                    std::unique_lock<std::mutex> _(mtx);
-                    if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
-                        spdlog::warn("thread(up )({:2}): 发送超时", id);
-                        sck->cancel();
-                        return;
-                    }
-                }
-            });
             while ((!mReader->finished() || buf.data().size() != 0) && !mstop) {
                 size = mReader->read(buf.prepare(BUFFSIZE).data(), BUFFSIZE);
                 buf.commit(size);
@@ -96,9 +95,7 @@ namespace mtft {
             exit = true;
             cond.notify_one();
         }
-        if (t.joinable()) {
-            t.join();
-        }
+        t.join();
         return fin;
     }
 
@@ -152,29 +149,28 @@ namespace mtft {
 
     bool DownWork::downloadFunc(const socket_ptr& sck, int id) {
         std::atomic_bool        exit{ false };
-        std::thread             t;
         std::mutex              mtx;
         std::condition_variable cond;
         streambuf               buf;
         Json::Value             json;
         uint32_t                size;
         bool                    fin = true;
+        auto                    t   = std::thread([&] {
+            while (!exit) {
+                std::unique_lock<std::mutex> _(mtx);
+                if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
+                    spdlog::warn("thread(down)({:2}): 接收超时", id);
+                    sck->cancel();
+                    return;
+                }
+            }
+        });
         try {
             // 向json写入配置
             json[PROGRESS] = mFwriter->getProgress();
             // json配置写入缓存, 并发送
             WriteJsonToBuf(buf, json);
             write(*sck, buf);
-            t = std::thread([&] {
-                while (!exit) {
-                    std::unique_lock<std::mutex> _(mtx);
-                    if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
-                        spdlog::warn("thread(down)({:2}): 接收超时", id);
-                        sck->cancel();
-                        return;
-                    }
-                }
-            });
             while (!mFwriter->finished() && !mstop) {
                 size = sck->receive(buf.prepare(BUFFSIZE));
                 cond.notify_one();
@@ -190,9 +186,7 @@ namespace mtft {
             exit = true;
             cond.notify_one();
         }
-        if (t.joinable()) {
-            t.join();
-        }
+        t.join();
         return fin;
     }
 
