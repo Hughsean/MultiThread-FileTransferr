@@ -14,29 +14,30 @@
 #define MAIN_TASK_H
 #define _WIN32_WINNT 0x0601
 
-#include "asio.hpp"
+#include "asio/ip/tcp.hpp"
+#include "asio/streambuf.hpp"
 #include "condition_variable"
 #include "config.h"
 #include "fileblock.h"
 #include "mutex"
 #include "queue"
 #include "thread"
-#include "json/json.h"
+#include "json/value.h"
 
 namespace mtft {
-    using namespace asio;
-    using socket_ptr = std::shared_ptr<ip::tcp::socket>;
+    // using namespace asio;
+    using socket_ptr = std::shared_ptr<asio::ip::tcp::socket>;
 
     enum class TaskType { Down, Up };
     /// @brief json.clear(); buf ==> json
     /// @param buf 缓存
     /// @param json Json::Value
     /// @return 操作是否成功
-    void ReadJsonFromBuf(streambuf &buf, Json::Value &json);
+    void ReadJsonFromBuf(asio::streambuf &buf, Json::Value &json);
     /// @brief json ==> buf; json.clear()
     /// @param buf 缓存
     /// @param json Json::Value
-    uint32_t WriteJsonToBuf(streambuf &buf, Json::Value &json);
+    auto WriteJsonToBuf(asio::streambuf &buf, Json::Value &json) -> uint32_t;
 
     class Work : Base {
     public:
@@ -44,38 +45,38 @@ namespace mtft {
         virtual void Func(int id) = 0;
         explicit Work(int i);
         virtual ~Work();
-        int  getID() const;
+        auto getID() const -> int;
         void stop();
 
     protected:
         int                     mid;
-        io_context              mioc;
+        asio::io_context        mioc;
         std::atomic_bool        mstop;
         std::condition_variable cstop;
     };
 
     class UpWork : public Work {
     public:
-        UpWork(const ip::tcp::endpoint &remote, const FileReader::ptr &reader);
+        UpWork(asio::ip::tcp::endpoint remote, const FileReader::ptr &reader);
         void Func(int id) override;
 
     private:
-        bool              uploadFunc(const socket_ptr &sck, int id);
-        FileReader::ptr   mReader;
-        ip::tcp::endpoint mremote;
+        auto                    uploadFunc(const socket_ptr &sck, int id) -> bool;
+        FileReader::ptr         mReader;
+        asio::ip::tcp::endpoint mremote;
     };
 
     class DownWork : public Work {
     public:
         explicit DownWork(const FileWriter::ptr &fwriter);
         void Func(int id) override;
-        int  GetPort();
+        auto GetPort() -> int;
 
     private:
-        bool                               downloadFunc(const socket_ptr &sck, int id);
-        FileWriter::ptr                    mFwriter;
-        std::shared_ptr<ip::tcp::acceptor> macp;
-        ip::tcp::endpoint                  medp;
+        FileWriter::ptr                          mFwriter;
+        std::shared_ptr<asio::ip::tcp::acceptor> macp;
+        asio::ip::tcp::endpoint                  medp;
+        auto downloadFunc(const socket_ptr &sck, int id) -> bool;
     };
 
     class Task : public Base {
@@ -83,13 +84,14 @@ namespace mtft {
         using ptr = std::shared_ptr<Task>;
         Task()    = delete;
         Task(const std::vector<FileWriter::ptr> &vec, const std::string &fname);
-        Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>> &vec, const std::string &fname);
-        void                              stop();
-        bool                              empty();
-        Work::ptr                         getWork();
-        std::vector<std::tuple<int, int>> getPorts();
-        std::string                       getName();
-        TaskType                          getType();
+        Task(const std::vector<std::tuple<asio::ip::tcp::endpoint, FileReader::ptr>> &vec,
+             const std::string                                                       &fname);
+        void               stop();
+        auto               getWork() -> Work::ptr;
+        auto               getPorts() -> std::vector<std::tuple<int, int>>;
+        auto               getName() -> std::string;
+        auto               getType() -> TaskType;
+        [[nodiscard]] auto empty() const -> bool;
 
     private:
         std::vector<Work::ptr> mWorks;
@@ -110,8 +112,8 @@ namespace mtft {
     public:
         TaskPool();
         ~TaskPool();
-        bool isrepeat(const std::string &name);
         void submit(const Task::ptr &task);
+        auto isrepeat(const std::string &name) -> bool;
 
     private:
         volatile bool                                    mstop;       //
@@ -125,4 +127,4 @@ namespace mtft {
         std::map<std::tuple<std::string, TaskType>, int> progressmap;
     };
 }  // namespace mtft
-#endif  // MAIN_TASK_H
+#endif

@@ -2,6 +2,9 @@
 // Created by xSeung on 2023/4/21.
 //
 #include "app.h"
+#include "asio/ip/host_name.hpp"
+#include "asio/ip/udp.hpp"
+#include "asio/write.hpp"
 #include "filesystem"
 #include "iostream"
 #include "regex"
@@ -29,7 +32,8 @@ namespace mtft {
         mstop = true;
         ip::udp::socket usck(mioc, ip::udp::endpoint(ip::udp::v4(), 0));
         ip::tcp::socket tsck(mioc, ip::tcp::endpoint(ip::tcp::v4(), 0));
-        usck.send_to(buffer(R"({"space": "holder"})"), ip::udp::endpoint(ip::address_v4::loopback(), UDPPORT));
+        usck.send_to(buffer(R"({"space": "holder"})"),
+                     ip::udp::endpoint(ip::address_v4::loopback(), UDPPORT));
         usck.close();
         tsck.connect(ip::tcp::endpoint(ip::address_v4::loopback(), TCPPORT));
         mudplisten.join();
@@ -185,7 +189,9 @@ namespace mtft {
         spdlog::info("tcp 停止监听");
     }
     void App::interpreter(const std::string& cmd) {
-        const std::string _send{ R"(\s*send\s+(\b(?:\d{1,3}\.){3}\d{1,3}\b)\s+\"?([^"]*[^\\^"])\"?\s*)" };
+        const std::string _send{
+            R"(\s*send\s+(\b(?:\d{1,3}\.){3}\d{1,3}\b)\s+\"?([^"]*[^\\^"])\"?\s*)"
+        };
         const std::string _scan{ R"(\s*scan\s*)" };
         const std::string _exit{ R"(\s*exit\s*)" };
         std::smatch       res;
@@ -228,4 +234,4 @@ namespace mtft {
             } while (!mstop);
         }
     }
-}  // namespace mtft
+}

@@ -13,24 +13,24 @@ namespace mtft {
  * @copyright Copyright (c) 2023
  */
 #define FilePartName "{}_{}.part"
-    extern const int                          BUFFSIZE;
-    extern const int                          THREAD_N;
-    extern const int                          JSONSIZE;
-    extern const int                          UDPPORT;
-    extern const int                          TCPPORT;
-    extern const int                          CORESPONSEPORT;
-    extern const int                          TIMEOUT;
-    extern const int                          RECONNECTTIME;
-    extern const int                          ParallelN;
-    extern const std::string                  DIR;
-    extern const std::string                  PROGRESS;
-    extern const std::string                  TYPE;
-    extern const std::string                  RESPONSE;
-    extern const std::string                  SCAN;
-    extern const std::string                  FILENAME;
-    extern const std::string                  FILESIZE;
-    extern const std::string                  ID;
-    extern const std::string                  PORT;
+    extern const int         BUFFSIZE;
+    extern const int         THREAD_N;
+    extern const int         JSONSIZE;
+    extern const int         UDPPORT;
+    extern const int         TCPPORT;
+    extern const int         CORESPONSEPORT;
+    extern const int         TIMEOUT;
+    extern const int         RECONNECTTIME;
+    extern const int         ParallelN;
+    extern const std::string DIR;
+    extern const std::string PROGRESS;
+    extern const std::string TYPE;
+    extern const std::string RESPONSE;
+    extern const std::string SCAN;
+    extern const std::string FILENAME;
+    extern const std::string FILESIZE;
+    extern const std::string ID;
+    extern const std::string PORT;
 
     /**
      * @brief 禁止移动, 禁止复制
@@ -42,11 +42,11 @@ namespace mtft {
      */
     class Base {
     public:
-        Base(Base &)             = delete;
-        Base(Base &&)            = delete;
-        Base &operator=(Base &)  = delete;
-        Base &operator=(Base &&) = delete;
-        Base()                   = default;
+        Base(Base &)                      = delete;
+        Base(Base &&)                     = delete;
+        auto operator=(Base &) -> Base  & = delete;
+        auto operator=(Base &&) -> Base & = delete;
+        Base()                            = default;
     };
 }  // namespace mtft
-#endif  // CN_CD_CONFIG_H
+#endif

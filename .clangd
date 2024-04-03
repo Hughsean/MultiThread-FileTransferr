@@ -1,0 +1,22 @@
+Index:
+  StandardLibrary: Yes
+Diagnostics:
+  ClangTidy:
+    Add: [modernize*, bugprone*, performance*, clang-analyzer*, boost*]
+    Remove: [
+      bugprone-easily-swappable-parameters,
+      modernize-avoid-c-arrays,
+      ]
+  # UnusedIncludes: None
+  UnusedIncludes: Strick
+
+InlayHints:
+  Enabled: Yes
+  BlockEnd: Yes
+  Designators: No
+  ParameterNames: No
+  DeducedTypes: Yes
+  TypeNameLimit: 16
+
+Hover:
+  ShowAKA: Yes

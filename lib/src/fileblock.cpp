@@ -19,11 +19,11 @@ namespace mtft {
         mifs.seekg((int64_t)offset, std::ios::beg);
     }
 
-    bool FileReader::finished() const {
+    auto FileReader::finished() const -> bool {
         return mProgress == mLength;
     }
 
-    int64_t FileReader::read(void *data, int64_t buffersize) {
+    auto FileReader::read(void *data, int64_t buffersize) -> int64_t {
         if (this->finished()) {
             spdlog::warn("尝试在已读完的块中继续读出内容");
             return 0;
@@ -43,7 +43,7 @@ namespace mtft {
         mifs.seekg((mOffset + mProgress), std::ios::beg);
     }
 
-    int FileReader::getID() const {
+    auto FileReader::getID() const -> int {
         return mID;
     }
 
@@ -64,14 +64,16 @@ namespace mtft {
             vec.emplace_back(std::make_shared<FileReader>(i, fpath, blocksize * i, blocksize));
             spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", i, i * blocksize, blocksize);
         }
-        vec.emplace_back(std::make_shared<FileReader>(n - 1, fpath, (n - 1) * blocksize, lastblock));
-        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, (n - 1) * blocksize, lastblock);
+        vec.emplace_back(
+            std::make_shared<FileReader>(n - 1, fpath, (n - 1) * blocksize, lastblock));
+        spdlog::info("id:{:2}, offset:{:15}, blocksize:{:10}", n - 1, (n - 1) * blocksize,
+                     lastblock);
         return vec;
     }
 
-    FileWriter::FileWriter(int id, const std::string &filename, const std::string &path, int64_t length)
-        : mid(id), mLength(length), mPath(path) {
-        mProgress        = 0;
+    FileWriter::FileWriter(int id, const std::string &filename, const std::string &path,
+                           int64_t length)
+        : mid(id), mLength(length), mProgress(0), mPath(path) {
         mFileName        = fmt::format(FilePartName, filename, id);
         std::string temp = fmt::format("{}\\{}", path, mFileName);
         mofs.open(temp, std::ios::binary);
@@ -81,11 +83,11 @@ namespace mtft {
         }
     }
 
-    bool FileWriter::finished() const {
+    auto FileWriter::finished() const -> bool {
         return mProgress == mLength;
     }
 
-    int64_t FileWriter::write(const void *data, int64_t buffersize) {
+    auto FileWriter::write(const void *data, int64_t buffersize) -> int64_t {
         if (finished()) {
             spdlog::warn("尝试在已写完的块中继续写入内容");
             return 0;
@@ -97,19 +99,19 @@ namespace mtft {
         return size;
     }
 
-    int FileWriter::getID() const {
+    auto FileWriter::getID() const -> int {
         return mid;
     }
 
-    const std::string &FileWriter::getFname() {
+    [[maybe_unused]] auto FileWriter::getFname() -> const std::string & {
         return mFileName;
     }
 
-    int64_t FileWriter::getProgress() const {
+    auto FileWriter::getProgress() const -> int64_t {
         return mProgress;
     }
 
-    bool FileWriter::merge(const std::string &fname) {
+    auto FileWriter::merge(const std::string &fname) -> bool {
         spdlog::info("创建文件: {}", fname);
         std::ofstream ofs(fname, std::ios::binary);
         if (!ofs.good()) {
@@ -137,8 +139,8 @@ namespace mtft {
         mofs.close();
     }
 
-    auto FileWriter::Build(int n, int64_t totalsize, const std::string &filename, const std::string &path)
-        -> std::vector<ptr> {
+    auto FileWriter::Build(int n, int64_t totalsize, const std::string &filename,
+                           const std::string &path) -> std::vector<ptr> {
         if (n < 1) {
             spdlog::error("n<1");
             abort();

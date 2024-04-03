@@ -1,10 +1,11 @@
 ﻿#define _WIN32_WINNT 0x0601
-#include "asio.hpp"
+#include "asio/io_context.hpp"
+#include "asio/ip/tcp.hpp"
 #include "config.h"
 #include "iostream"
 #include "regex"
 
-int main() {
+auto main() -> int {
     using namespace asio;
     io_context        ioc;
     ip::tcp::socket   sck(ioc, ip::tcp::endpoint(ip::tcp::v4(), 0));
@@ -22,7 +23,7 @@ int main() {
         }
     }
     catch (const std::exception& e) {
-        std::cout << e.what() << std::endl;
+        std::cout << e.what() << '\n';
     }
     return 0;
 }

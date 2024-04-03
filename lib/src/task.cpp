@@ -2,11 +2,13 @@
 // Created by xSeung on 2023/4/21.
 //
 #include "task.h"
+#include "asio/write.hpp"
 #include "filesystem"
 #include "mutex"
 #include "spdlog/spdlog.h"
-#include "sstream"
 #include "thread"
+#include "utility"
+#include "json/reader.h"
 
 namespace mtft {
     using namespace asio;
@@ -21,7 +23,7 @@ namespace mtft {
         buf.consume(size);
     }
 
-    uint32_t WriteJsonToBuf(streambuf& buf, Json::Value& json) {
+    auto WriteJsonToBuf(streambuf& buf, Json::Value& json) -> uint32_t {
         auto str  = json.toStyledString();
         auto size = str.size() * sizeof(char);
         json.clear();
@@ -30,15 +32,12 @@ namespace mtft {
         return size;
     }
 
-    Work::Work(int i) {
-        mstop = false;
-        mid   = i;
-    }
+    Work::Work(int i) : mid(i), mstop(false) {}
     Work::~Work() {
         stop();
         cstop.notify_one();
     }
-    int Work::getID() const {
+    auto Work::getID() const -> int {
         return mid;
     }
     void Work::stop() {
@@ -46,16 +45,14 @@ namespace mtft {
         cstop.notify_one();
     }
 
-    UpWork::UpWork(const ip::tcp::endpoint& remote, const FileReader::ptr& reader) : Work(reader->getID()) {
-        mremote = remote;
-        mReader = reader;
-    }
+    UpWork::UpWork(ip::tcp::endpoint remote, const FileReader::ptr& reader)
+        : Work(reader->getID()), mReader(reader), mremote(std::move(remote)) {}
 
-    bool UpWork::uploadFunc(const socket_ptr& sck, int id) {
+    auto UpWork::uploadFunc(const socket_ptr& sck, int id) -> bool {
         std::atomic_bool        exit{ false };
         streambuf               buf;
-        uint32_t                size;
-        uint32_t                progress;
+        uint32_t                size     = 0;
+        uint32_t                progress = 0;
         Json::Value             json;
         bool                    fin = true;
         std::condition_variable cond;
@@ -63,7 +60,8 @@ namespace mtft {
         auto                    t = std::thread([&] {
             while (!exit) {
                 std::unique_lock<std::mutex> _(mtx);
-                if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
+                if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT))
+                    == std::cv_status::timeout) {
                     spdlog::warn("thread(up )({:2}): 发送超时", id);
                     sck->cancel();
                     return;
@@ -118,7 +116,7 @@ namespace mtft {
         });
         while (!mstop) {
             sck = std::make_shared<ip::tcp::socket>(mioc);
-            sck->connect(mremote, ec);
+            (void)sck->connect(mremote, ec);
             if (ec) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(RECONNECTTIME));
             }
@@ -147,7 +145,7 @@ namespace mtft {
         macp->listen();
     }
 
-    bool DownWork::downloadFunc(const socket_ptr& sck, int id) {
+    auto DownWork::downloadFunc(const socket_ptr& sck, int id) -> bool {
         std::atomic_bool        exit{ false };
         std::mutex              mtx;
         std::condition_variable cond;
@@ -158,7 +156,8 @@ namespace mtft {
         auto                    t   = std::thread([&] {
             while (!exit) {
                 std::unique_lock<std::mutex> _(mtx);
-                if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT)) == std::cv_status::timeout) {
+                if (cond.wait_for(_, std::chrono::milliseconds(TIMEOUT))
+                    == std::cv_status::timeout) {
                     spdlog::warn("thread(down)({:2}): 接收超时", id);
                     sck->cancel();
                     return;
@@ -210,7 +209,8 @@ namespace mtft {
                 continue;
             }
             else {
-                spdlog::info("thread(down)({:2})接收连接: {}", id, sck->remote_endpoint().address().to_string());
+                spdlog::info("thread(down)({:2})接收连接: {}", id,
+                             sck->remote_endpoint().address().to_string());
                 fin = downloadFunc(sck, id);
             }
             if (fin) {
@@ -226,7 +226,7 @@ namespace mtft {
         mFwriter->close();
     }
 
-    int DownWork::GetPort() {
+    auto DownWork::GetPort() -> int {
         return macp->local_endpoint().port();
     }
 
@@ -240,7 +240,8 @@ namespace mtft {
         }
     }
 
-    Task::Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>>& vec, const std::string& fname) {
+    Task::Task(const std::vector<std::tuple<ip::tcp::endpoint, FileReader::ptr>>& vec,
+               const std::string&                                                 fname) {
         n     = (int)vec.size();
         fName = fname;
         type  = TaskType::Up;
@@ -256,11 +257,11 @@ namespace mtft {
         }
     }
 
-    bool Task::empty() {
+    auto Task::empty() const -> bool {
         return n == 0;
     }
 
-    Work::ptr Task::getWork() {
+    auto Task::getWork() -> Work::ptr {
         if (n == 0) {
             std::abort();
         }
@@ -271,7 +272,7 @@ namespace mtft {
      *
      * @return std::vector<std::tuple<int, int>> id, port
      */
-    std::vector<std::tuple<int, int>> Task::getPorts() {
+    auto Task::getPorts() -> std::vector<std::tuple<int, int>> {
         if (type != TaskType::Down) {
             spdlog::error("{}:{}", __FILE__, __LINE__);
             abort();
@@ -284,11 +285,11 @@ namespace mtft {
         return vec;
     }
     //
-    std::string Task::getName() {
+    auto Task::getName() -> std::string {
         return fName;
     }
 
-    TaskType Task::getType() {
+    auto Task::getType() -> TaskType {
         return type;
     }
 
@@ -359,7 +360,7 @@ namespace mtft {
         }
     }
 
-    bool TaskPool::isrepeat(const std::string& name) {
+    auto TaskPool::isrepeat(const std::string& name) -> bool {
         bool ret = false;
         {
             std::unique_lock<std::mutex> _(mtxM);
@@ -386,4 +387,4 @@ namespace mtft {
         cond.notify_one();
         spdlog::info("任务已提交");
     }
-}  // namespace mtft
+}
